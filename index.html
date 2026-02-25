@@ -174,13 +174,30 @@
 
     /* ── Results count ── */
     .result-count{font-size:12px;color:var(--muted);margin:-6px 0 10px;padding-left:2px}
+    #loading .logo {
+  background: transparent !important; /* ลบสีพื้นหลังเดิมถ้ามี */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* จัดการตัวรูปภาพโลโก้ */
+#loading .logo img {
+  width: 80px;       /* กำหนดขนาดความกว้างโลโก้ (ปรับเลขนี้ได้ถ้าอยากได้ใหญ่/เล็กกว่านี้) */
+  height: 80px;      /* กำหนดความสูงให้เท่ากันเป็นสี่เหลี่ยมจัตุรัส */
+  object-fit: contain; /* ให้รูปแสดงสัดส่วนจริง ไม่โดนบีบ */
+  border-radius: 50%; /* ทำให้รูุปกลมสวยงาม (เพราะโลโก้เดิมเป็นวงกลมอยู่แล้ว) */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* เพิ่มเงาเล็กน้อยให้ดูมีมิติ */
+}
   </style>
 </head>
 <body>
 
 <!-- Loading -->
 <div id="loading">
-  <div class="logo">💰</div>
+  <div class="logo">
+    <img src="https://cdn1.sharemyimage.com/2025/10/15/Logo.jpg" alt="โลโก้ฟ้าประทาน">
+  </div>
   <div class="ttl">บันทึกรับยอด</div>
   <div class="sub">ฟ้าประทาน จำกัด</div>
   <div class="spinner"></div>
@@ -383,7 +400,7 @@
    CONFIG
    ═══════════════════════════════════════ */
 const LIFF_ID = '2009224163-ZyLVfnoq';
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyfiO_3KO4I5KY6d-nmuz9jZjql0C3T9hD9K2oAkufjwIBYbma2lYpVHoYRyQTym2gHog/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyKKaYWcC4lrS_Hf1dp2YOXwG15gZLn7_VeNSXw6AcKv-zTbSjC2Z9sQxXe0Do1rEB2Xg/exec';
 /* ═══════════════════════════════════════ */
 
 let lineUserId  = '';
