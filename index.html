@@ -475,7 +475,7 @@ async function searchQuotes(tab) {
   sel.innerHTML = '<option value="">⏳ กำลังโหลด…</option>';
 
   try {
-    const url = `${GAS_URL}?action=getQuotesByDate&date=${date}`;
+    const url = `${GAS_URL}?action=getQuotesByDate&date=${date}&t=${Date.now()}`;
     const res = await (await fetch(url)).json();
     const quotes = res.quotes || [];
 
