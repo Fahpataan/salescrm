@@ -7,22 +7,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root {
-      --green:  #0ea5e9; --green-dk: #0284c7;
-      --blue:   #0369a1; --blue-dk:  #075985;
-      --bg:     #f0f6fb; --card: #fff;
-      --text:   #0f172a; --muted: #6b7280;
-      --border: #e2e8f0; --nav-h: 66px; --r: 14px;
-      --shadow: 0 2px 12px rgba(14,165,233,.10);
+      --green:  #06C755; --green-dk: #00A040;
+      --blue:   #0066CC; --blue-dk:  #0052A3;
+      --bg:     #f0f4f8; --card: #fff;
+      --text:   #1a1a2e; --muted: #6b7280;
+      --border: #e5e7eb; --nav-h: 66px; --r: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,.08);
     }
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     body{font-family:'Prompt',sans-serif;background:var(--bg);color:var(--text);
          min-height:100vh;max-width:480px;margin:0 auto}
 
     /* ── Loading ── */
-    #loading{position:fixed;inset:0;background:linear-gradient(160deg,#0ea5e9,#0284c7);
+    #loading{position:fixed;inset:0;background:linear-gradient(160deg,#06C755,#00A040);
       display:flex;flex-direction:column;align-items:center;justify-content:center;
       z-index:9999;color:#fff;transition:opacity .4s}
     #loading .logo{font-size:52px;margin-bottom:10px}
@@ -43,7 +42,7 @@
 
     /* ── App ── */
     #app{display:none;min-height:100vh;padding-bottom:var(--nav-h)}
-    .header{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;
+    .header{background:linear-gradient(135deg,#06C755,#00A040);color:#fff;
       padding:14px 20px 12px;position:sticky;top:0;z-index:200}
     .hdr-row{display:flex;align-items:center;justify-content:space-between}
     .hdr-logo{font-size:18px;font-weight:700}
@@ -174,30 +173,13 @@
 
     /* ── Results count ── */
     .result-count{font-size:12px;color:var(--muted);margin:-6px 0 10px;padding-left:2px}
-    #loading .logo {
-  background: transparent !important; /* ลบสีพื้นหลังเดิมถ้ามี */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* จัดการตัวรูปภาพโลโก้ */
-#loading .logo img {
-  width: 80px;       /* กำหนดขนาดความกว้างโลโก้ (ปรับเลขนี้ได้ถ้าอยากได้ใหญ่/เล็กกว่านี้) */
-  height: 80px;      /* กำหนดความสูงให้เท่ากันเป็นสี่เหลี่ยมจัตุรัส */
-  object-fit: contain; /* ให้รูปแสดงสัดส่วนจริง ไม่โดนบีบ */
-  border-radius: 4px; /* ทำให้รูุปกลมสวยงาม (เพราะโลโก้เดิมเป็นวงกลมอยู่แล้ว) */
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* เพิ่มเงาเล็กน้อยให้ดูมีมิติ */
-}
   </style>
 </head>
 <body>
 
 <!-- Loading -->
 <div id="loading">
-  <div class="logo">
-    <img src="https://cdn1.sharemyimage.com/2025/10/15/Logo.jpg" alt="โลโก้ฟ้าประทาน">
-  </div>
+  <div class="logo">💰</div>
   <div class="ttl">บันทึกรับยอด</div>
   <div class="sub">ฟ้าประทาน จำกัด</div>
   <div class="spinner"></div>
@@ -400,7 +382,7 @@
    CONFIG
    ═══════════════════════════════════════ */
 const LIFF_ID = '2009224163-ZyLVfnoq';
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyKKaYWcC4lrS_Hf1dp2YOXwG15gZLn7_VeNSXw6AcKv-zTbSjC2Z9sQxXe0Do1rEB2Xg/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyfiO_3KO4I5KY6d-nmuz9jZjql0C3T9hD9K2oAkufjwIBYbma2lYpVHoYRyQTym2gHog/exec';
 /* ═══════════════════════════════════════ */
 
 let lineUserId  = '';
@@ -460,39 +442,20 @@ async function doVerifyPin() {
   setBtnLoad('auth-btn', false, '🔓 เข้าใช้งาน');
 }
 
-/* ─── แปลงวันที่จาก input[type=date] → yyyy-MM-dd (ค.ศ. เสมอ) ─── */
-function normDateInput(val) {
-  if (!val) return '';
-  // input[type=date] ส่งมาเป็น "yyyy-MM-dd"
-  // แต่ iOS/Android ภาษาไทยอาจส่งปี พ.ศ. เช่น "2569-02-27"
-  const parts = val.split('-');
-  if (parts.length === 3) {
-    let y = parseInt(parts[0], 10);
-    if (y > 2500) y -= 543;          // พ.ศ. → ค.ศ.
-    return y + '-' + parts[1] + '-' + parts[2];
-  }
-  return val;
-}
-
 /* ─── Search Quotes by Event Date ─── */
 async function searchQuotes(tab) {
   const p    = tab === 'deposit' ? 'd' : 'b';
-  const raw  = document.getElementById(p + '-event-date').value;
-  const date = normDateInput(raw);   // ← แปลง พ.ศ.→ค.ศ. ก่อนส่ง
+  const date = document.getElementById(p + '-event-date').value;
   const sel  = document.getElementById(p + '-quote');
   const cnt  = document.getElementById(p + '-result-count');
 
   if (!date) { toast('⚠️ กรุณาเลือกวันที่จัดงานก่อน','err'); return; }
 
-  // DEBUG — ดูค่า date จริงที่จะส่ง GAS
-  console.log('[LIFF] raw="' + raw + '"  →  date="' + date + '"');
-  cnt.textContent = '⏳ กำลังค้นหา… [' + date + ']';
-
   cnt.textContent = '⏳ กำลังค้นหา…';
   sel.innerHTML = '<option value="">⏳ กำลังโหลด…</option>';
 
   try {
-    const url = `${GAS_URL}?action=getQuotesByDate&date=${date}&t=${Date.now()}`;
+    const url = `${GAS_URL}?action=getQuotesByDate&date=${date}`;
     const res = await (await fetch(url)).json();
     const quotes = res.quotes || [];
 
@@ -500,7 +463,7 @@ async function searchQuotes(tab) {
     quotes.forEach(q => sel.add(new Option(q.label, q.quoteNo, false, false)));
 
     cnt.textContent = quotes.length
-      ? `พบ ${quotes.length} รายการ (ทุกแอดมิน)`
+      ? `พบ ${quotes.length} รายการ (ของ ${adminName})`
       : '— ไม่พบรายการในวันที่นี้ —';
 
     // ถ้ามีแค่ 1 รายการ → เลือกให้อัตโนมัติ
@@ -524,34 +487,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-/* ─── ตรวจหา QR Code จากรูปด้วย jsQR ─── */
-function detectQRCode(dataUrl) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = function() {
-      try {
-        const canvas  = document.createElement('canvas');
-        canvas.width  = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        resolve(code ? code.data : null);   // คืน QR string ถ้าเจอ, null ถ้าไม่เจอ
-      } catch(e) { resolve(null); }
-    };
-    img.onerror = () => resolve(null);
-    img.src = dataUrl;
-  });
-}
-
-/* ─── Slip Selected → ตรวจ QR ก่อน แล้วค่อยส่ง SlipOK ─── */
+/* ─── Slip Selected → ตรวจอัตโนมัติทันที ─── */
 function onSlipSelected(p) {
   const file = document.getElementById('slip-file-' + p).files[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = async function(e) {
+  reader.onload = function(e) {
     const base64 = e.target.result.split(',')[1];
     slipFile[p] = { data: base64, mimeType: file.type, name: file.name };
 
@@ -562,22 +504,13 @@ function onSlipSelected(p) {
     document.getElementById('slip-placeholder-' + p).style.display = 'none';
     document.getElementById('slip-zone-' + p).classList.add('has-img');
 
+    // Reset verify state แล้วตรวจอัตโนมัติทันที
     slipData[p] = null;
+    showVerifyBox(p, 'skip', '⏳', 'กำลังตรวจสอบสลิป…');
     document.getElementById(p + '-verify-btn').disabled = true;
-    showVerifyBox(p, 'skip', '🔍', 'กำลังตรวจหา QR code…');
 
-    // ── Step 1: ตรวจหา QR code ฝั่ง browser ──
-    const qrData = await detectQRCode(e.target.result);
-
-    if (qrData) {
-      // มี QR → ส่ง SlipOK ตรวจต่อทันที
-      showVerifyBox(p, 'skip', '⏳', 'พบ QR code — กำลังส่งตรวจ SlipOK…');
-      doVerifySlip(p);
-    } else {
-      // ไม่มี QR → แจ้งให้กรอกเอง
-      showVerifyBox(p, 'skip', '📝', 'ไม่พบ QR code — กรุณากรอกยอดและวันที่เอง');
-      document.getElementById(p + '-verify-btn').disabled = false;  // เปิดปุ่มตรวจใหม่ไว้เผื่อ
-    }
+    // ── Auto-verify ──
+    doVerifySlip(p);
   };
   reader.readAsDataURL(file);
 }
