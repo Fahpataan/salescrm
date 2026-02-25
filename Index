@@ -373,8 +373,8 @@
 /* =====================================================
    🔧 CONFIG — แก้ค่าด้านล่างก่อนใช้งาน
    ===================================================== */
-const LIFF_ID  = 'YOUR_LIFF_ID';          // ← ใส่ LIFF ID ที่ได้จาก LINE Developers
-const GAS_URL  = 'YOUR_GAS_DEPLOY_URL';   // ← ใส่ URL ของ Apps Script Web App
+const LIFF_ID  = '2009224163-ZyLVfnoq';   // ✅ LIFF ID
+const GAS_URL  = 'https://script.google.com/macros/s/AKfycbw6PZFfd0hjS1P8AvDZigtcFcGlpkr6Kvip0eCJQtJl4kOIFRc8L-EcuNPU95wa23acjg/exec'; // ✅ GAS URL
 /* ===================================================== */
 
 let lineUserId   = '';
