@@ -467,6 +467,10 @@ async function searchQuotes(tab) {
 
   if (!date) { toast('⚠️ กรุณาเลือกวันที่จัดงานก่อน','err'); return; }
 
+  // DEBUG — ดูค่า date จริงที่จะส่ง GAS
+  console.log('[LIFF] raw="' + raw + '"  →  date="' + date + '"');
+  cnt.textContent = '⏳ กำลังค้นหา… [' + date + ']';
+
   cnt.textContent = '⏳ กำลังค้นหา…';
   sel.innerHTML = '<option value="">⏳ กำลังโหลด…</option>';
 
