@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>บันทึกรับยอด — ฟ้าประทาน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <style>
+    /* ===== Reset & Root ===== */
+    :root {
+      --green:      #06C755;
+      --green-dark: #00A040;
+      --bg:         #f0f4f8;
+      --card:       #ffffff;
+      --text:       #1a1a2e;
+      --muted:      #6b7280;
+      --border:     #e5e7eb;
+      --nav-h:      66px;
+      --radius:     14px;
+      --shadow:     0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body {
+      font-family:'Prompt',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+      max-width:480px;
+      margin:0 auto;
+    }
+
+    /* ===== Loading ===== */
+    #loading {
+      position:fixed; inset:0;
+      background:linear-gradient(160deg, #06C755 0%, #00A040 100%);
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      z-index:9999; color:#fff;
+      transition:opacity .4s;
+    }
+    #loading .logo  { font-size:52px; margin-bottom:10px; }
+    #loading .title { font-size:20px; font-weight:600; letter-spacing:.5px; }
+    #loading .sub   { font-size:13px; opacity:.75; margin-top:4px; }
+    .spinner {
+      width:34px; height:34px; margin-top:28px;
+      border:3px solid rgba(255,255,255,.3);
+      border-top-color:#fff;
+      border-radius:50%;
+      animation:spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ===== Auth Screen ===== */
+    #auth {
+      display:none; min-height:100vh;
+      padding:32px 20px;
+      align-items:center; justify-content:center;
+      flex-direction:column;
+    }
+    .auth-card {
+      background:#fff; border-radius:20px;
+      padding:32px 24px; width:100%;
+      box-shadow:var(--shadow);
+    }
+    .auth-head { text-align:center; margin-bottom:24px; }
+    .auth-head .icon { font-size:54px; }
+    .auth-head h2 { font-size:20px; font-weight:600; margin-top:8px; }
+    .auth-head p  { font-size:13px; color:var(--muted); margin-top:4px; }
+
+    /* ===== Main App ===== */
+    #app { display:none; min-height:100vh; padding-bottom:var(--nav-h); }
+
+    /* Header */
+    .header {
+      background:linear-gradient(135deg,#06C755,#00A040);
+      color:#fff; padding:14px 20px 12px;
+      position:sticky; top:0; z-index:200;
+    }
+    .header-row  { display:flex; align-items:center; justify-content:space-between; }
+    .header-logo { font-size:18px; font-weight:700; letter-spacing:.3px; }
+    .header-admin{ font-size:12px; opacity:.85; background:rgba(255,255,255,.18);
+                   padding:3px 10px; border-radius:20px; }
+    .header-date { font-size:12px; opacity:.7; margin-top:4px; }
+
+    /* Page containers */
+    .page { padding:14px 14px 20px; display:none; animation:fadeIn .25s; }
+    .page.active { display:block; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+    /* Cards */
+    .card {
+      background:var(--card); border-radius:var(--radius);
+      padding:18px 16px; margin-bottom:14px;
+      box-shadow:var(--shadow);
+    }
+    .card-title {
+      font-size:15px; font-weight:600; margin-bottom:16px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .card-title .badge {
+      font-size:11px; font-weight:500; padding:2px 8px;
+      border-radius:20px; background:#e7f8ef; color:var(--green-dark);
+    }
+
+    /* Form elements */
+    .fg { margin-bottom:14px; }
+    label.lbl {
+      display:block; font-size:12px; font-weight:500;
+      color:var(--muted); margin-bottom:5px;
+    }
+    label.lbl .req { color:#ef4444; margin-left:2px; }
+    .ctrl {
+      width:100%; padding:11px 13px;
+      border:1.5px solid var(--border); border-radius:10px;
+      font-size:15px; font-family:'Prompt',sans-serif;
+      color:var(--text); background:#fff;
+      transition:border-color .2s;
+      -webkit-appearance:none; appearance:none;
+    }
+    .ctrl:focus { outline:none; border-color:var(--green); }
+    select.ctrl {
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;
+      background-position:right 10px center;
+      background-size:22px; padding-right:34px;
+    }
+    textarea.ctrl { resize:none; }
+    .amt-wrap { position:relative; }
+    .amt-pfx {
+      position:absolute; left:13px; top:50%; transform:translateY(-50%);
+      font-size:15px; color:var(--muted); pointer-events:none;
+    }
+    .amt-wrap .ctrl { padding-left:28px; }
+
+    /* Buttons */
+    .btn {
+      width:100%; padding:13px; border:none; border-radius:11px;
+      font-size:16px; font-weight:600; font-family:'Prompt',sans-serif;
+      cursor:pointer; transition:all .15s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-primary { background:var(--green); color:#fff; }
+    .btn-primary:active { transform:scale(.97); background:var(--green-dark); }
+    .btn-primary:disabled { background:#9de0be; cursor:not-allowed; transform:none; }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; height:var(--nav-h);
+      background:#fff; border-top:1px solid var(--border);
+      display:flex; z-index:300;
+      box-shadow:0 -3px 12px rgba(0,0,0,.07);
+    }
+    .nav-item {
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      gap:3px; cursor:pointer; padding:6px 0;
+      transition:background .15s;
+    }
+    .nav-item:active { background:#f3f4f6; }
+    .nav-icon  { font-size:27px; transition:transform .2s; }
+    .nav-label { font-size:11px; font-weight:500; color:var(--muted); transition:color .2s; }
+    .nav-item.active .nav-label { color:var(--green); font-weight:700; }
+    .nav-item.active .nav-icon  { transform:scale(1.12); }
+
+    /* Recent list */
+    .recent-row {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:10px 0; border-bottom:1px solid #f3f4f6;
+    }
+    .recent-row:last-child { border:none; }
+    .rr-name { font-size:14px; font-weight:500; }
+    .rr-meta { font-size:11px; color:var(--muted); margin-top:2px; }
+    .rr-amount { font-size:15px; font-weight:700; color:var(--green); white-space:nowrap; margin-left:8px; }
+
+    /* Empty */
+    .empty { text-align:center; padding:28px 20px; color:var(--muted); }
+    .empty .ico { font-size:40px; margin-bottom:10px; }
+    .empty p { font-size:13px; }
+
+    /* Auth error */
+    .auth-err { color:#ef4444; font-size:13px; margin-bottom:12px; display:none; }
+
+    /* Toast */
+    .toast {
+      position:fixed; bottom:calc(var(--nav-h) + 14px);
+      left:50%; transform:translateX(-50%) translateY(16px);
+      background:#1a1a2e; color:#fff;
+      padding:11px 22px; border-radius:30px;
+      font-size:14px; opacity:0;
+      transition:all .3s; z-index:9999;
+      pointer-events:none; white-space:nowrap;
+      box-shadow:0 4px 16px rgba(0,0,0,.2);
+    }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .toast.ok  { background:var(--green); }
+    .toast.err { background:#ef4444; }
+
+    /* PIN style */
+    .pin-ctrl { text-align:center; letter-spacing:10px; font-size:22px; font-weight:600; }
+
+    /* Divider between nav items */
+    .nav-divider {
+      width:1px; background:var(--border); margin:10px 0; align-self:stretch;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ========== Loading ========== -->
+<div id="loading">
+  <div class="logo">💰</div>
+  <div class="title">บันทึกรับยอด</div>
+  <div class="sub">ฟ้าประทาน จำกัด</div>
+  <div class="spinner"></div>
+</div>
+
+<!-- ========== Auth ========== -->
+<div id="auth">
+  <div class="auth-card">
+    <div class="auth-head">
+      <div class="icon">🔐</div>
+      <h2>ยืนยันตัวตน</h2>
+      <p>กรอก PIN เพื่อเชื่อม LINE ของคุณกับบัญชีแอดมิน</p>
+    </div>
+
+    <div class="fg">
+      <label class="lbl">LINE Display Name</label>
+      <input type="text" class="ctrl" id="auth-name" readonly />
+    </div>
+    <div class="fg">
+      <label class="lbl">PIN <span class="req">*</span></label>
+      <input type="password" class="ctrl pin-ctrl" id="auth-pin"
+             placeholder="• • • • • •" maxlength="10" inputmode="numeric" />
+    </div>
+    <div class="auth-err" id="auth-err"></div>
+    <button class="btn btn-primary" id="auth-btn" onclick="doVerifyPin()">
+      <span>🔓</span> เข้าใช้งาน
+    </button>
+  </div>
+</div>
+
+<!-- ========== Main App ========== -->
+<div id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-row">
+      <div class="header-logo">💰 บันทึกรับยอด</div>
+      <div class="header-admin" id="hdr-admin">—</div>
+    </div>
+    <div class="header-date" id="hdr-date"></div>
+  </div>
+
+  <!-- ---- Page: มัดจำ ---- -->
+  <div class="page active" id="page-deposit">
+    <div class="card">
+      <div class="card-title">
+        <span>📥</span> รับยอดมัดจำ
+        <span class="badge">Deposit</span>
+      </div>
+
+      <div class="fg">
+        <label class="lbl">ลูกค้า / เลขที่ใบเสนอราคา <span class="req">*</span></label>
+        <select class="ctrl" id="d-quote">
+          <option value="">-- เลือก Quote --</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="lbl">ชื่อลูกค้า</label>
+        <input type="text" class="ctrl" id="d-customer" placeholder="ดึงอัตโนมัติ / กรอกเอง" />
+      </div>
+      <div class="fg">
+        <label class="lbl">จำนวนเงินมัดจำ (บาท) <span class="req">*</span></label>
+        <div class="amt-wrap">
+          <span class="amt-pfx">฿</span>
+          <input type="number" class="ctrl" id="d-amount"
+                 placeholder="0.00" min="0" step="0.01" inputmode="decimal" />
+        </div>
+      </div>
+      <div class="fg">
+        <label class="lbl">วันที่รับเงิน <span class="req">*</span></label>
+        <input type="date" class="ctrl" id="d-date" />
+      </div>
+      <div class="fg">
+        <label class="lbl">หมายเหตุ</label>
+        <textarea class="ctrl" id="d-note" rows="2" placeholder="บันทึกเพิ่มเติม…"></textarea>
+      </div>
+      <button class="btn btn-primary" id="d-btn" onclick="doSubmitDeposit()">
+        <span>✅</span> บันทึกรับมัดจำ
+      </button>
+    </div>
+
+    <!-- Recent -->
+    <div class="card">
+      <div class="card-title"><span>📋</span> รายการล่าสุด (มัดจำ)</div>
+      <div id="recent-deposit">
+        <div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- Page: คงเหลือ ---- -->
+  <div class="page" id="page-balance">
+    <div class="card">
+      <div class="card-title">
+        <span>💸</span> รับยอดคงเหลือ
+        <span class="badge">Balance</span>
+      </div>
+
+      <div class="fg">
+        <label class="lbl">ลูกค้า / เลขที่ใบเสนอราคา <span class="req">*</span></label>
+        <select class="ctrl" id="b-quote">
+          <option value="">-- เลือก Quote --</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="lbl">ชื่อลูกค้า</label>
+        <input type="text" class="ctrl" id="b-customer" placeholder="ดึงอัตโนมัติ / กรอกเอง" />
+      </div>
+      <div class="fg">
+        <label class="lbl">จำนวนเงิน (บาท) <span class="req">*</span></label>
+        <div class="amt-wrap">
+          <span class="amt-pfx">฿</span>
+          <input type="number" class="ctrl" id="b-amount"
+                 placeholder="0.00" min="0" step="0.01" inputmode="decimal" />
+        </div>
+      </div>
+      <div class="fg">
+        <label class="lbl">วันที่รับเงิน <span class="req">*</span></label>
+        <input type="date" class="ctrl" id="b-date" />
+      </div>
+      <div class="fg">
+        <label class="lbl">หมายเหตุ</label>
+        <textarea class="ctrl" id="b-note" rows="2" placeholder="บันทึกเพิ่มเติม…"></textarea>
+      </div>
+      <button class="btn btn-primary" id="b-btn" onclick="doSubmitBalance()">
+        <span>✅</span> บันทึกรับยอดคงเหลือ
+      </button>
+    </div>
+
+    <!-- Recent -->
+    <div class="card">
+      <div class="card-title"><span>📋</span> รายการล่าสุด (คงเหลือ)</div>
+      <div id="recent-balance">
+        <div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- Bottom Nav ---- -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" id="nav-deposit" onclick="switchPage('deposit')">
+      <div class="nav-icon">📥</div>
+      <div class="nav-label">รับมัดจำ</div>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" id="nav-balance" onclick="switchPage('balance')">
+      <div class="nav-icon">💸</div>
+      <div class="nav-label">รับคงเหลือ</div>
+    </div>
+  </nav>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ========== Script ========== -->
+<script>
+/* =====================================================
+   🔧 CONFIG — แก้ค่าด้านล่างก่อนใช้งาน
+   ===================================================== */
+const LIFF_ID  = 'YOUR_LIFF_ID';          // ← ใส่ LIFF ID ที่ได้จาก LINE Developers
+const GAS_URL  = 'YOUR_GAS_DEPLOY_URL';   // ← ใส่ URL ของ Apps Script Web App
+/* ===================================================== */
+
+let lineUserId   = '';
+let adminName    = '';
+let quotesCache  = [];   // [{quoteNo, customer}]
+
+/* ---------- Bootstrap ---------- */
+async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: location.href });
+      return;
+    }
+
+    const profile  = await liff.getProfile();
+    lineUserId     = profile.userId;
+
+    document.getElementById('auth-name').value = profile.displayName;
+    setTodayDates();
+    setHeaderDate();
+
+    // ตรวจว่าเป็น Admin แล้วหรือยัง
+    const res = await api({ action: 'checkAdmin', lineUserId });
+
+    if (res.status === 'approved') {
+      adminName = res.name;
+      await afterAuth();
+    } else {
+      hideLoading();
+      showEl('auth', 'flex');
+    }
+
+  } catch (err) {
+    console.error('init error:', err);
+
+    // dev / localhost mode
+    if (['localhost','127.0.0.1'].includes(location.hostname)) {
+      setTodayDates();
+      setHeaderDate();
+      hideLoading();
+      showEl('app', 'block');
+      return;
+    }
+    toast('⚠️ ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่', 'err');
+    hideLoading();
+  }
+}
+
+async function afterAuth() {
+  document.getElementById('hdr-admin').textContent = '👤 ' + adminName;
+  await Promise.all([loadQuotes(), loadRecent()]);
+  hideLoading();
+  showEl('auth', 'none');
+  showEl('app', 'block');
+}
+
+/* ---------- Auth / PIN ---------- */
+async function doVerifyPin() {
+  const pin = document.getElementById('auth-pin').value.trim();
+  if (!pin) { showAuthErr('กรุณากรอก PIN'); return; }
+
+  setBtnLoading('auth-btn', true);
+  try {
+    const res = await api({ action: 'registerAdmin', lineUserId, pin });
+
+    if (res.status === 'approved') {
+      adminName = res.name;
+      await afterAuth();
+    } else if (res.status === 'already_linked') {
+      showAuthErr('LINE นี้ถูกลงทะเบียนไว้แล้ว — กรุณาติดต่อผู้ดูแล');
+    } else {
+      showAuthErr('PIN ไม่ถูกต้อง หรือถูกใช้งานไปแล้ว');
+    }
+  } catch (e) {
+    showAuthErr('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+  }
+  setBtnLoading('auth-btn', false, '🔓 เข้าใช้งาน');
+}
+
+/* ---------- Load Quotes ---------- */
+async function loadQuotes() {
+  try {
+    const res  = await fetch(GAS_URL + '?action=getQuotes');
+    const data = await res.json();
+    quotesCache = data.quotes || [];
+
+    ['d-quote','b-quote'].forEach(id => {
+      const sel = document.getElementById(id);
+      quotesCache.forEach(q => {
+        sel.add(new Option(q.label, q.quoteNo));
+      });
+    });
+  } catch (e) {
+    console.warn('loadQuotes error:', e);
+  }
+}
+
+/* ---------- Auto-fill customer name ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('d-quote').addEventListener('change', e => autoFill(e.target.value, 'd-customer'));
+  document.getElementById('b-quote').addEventListener('change', e => autoFill(e.target.value, 'b-customer'));
+});
+
+function autoFill(quoteNo, custId) {
+  if (!quoteNo) return;
+  const found = quotesCache.find(q => q.quoteNo === quoteNo);
+  if (found) document.getElementById(custId).value = found.customer;
+}
+
+/* ---------- Submit Deposit ---------- */
+async function doSubmitDeposit() {
+  const quoteNo  = v('d-quote');
+  const customer = v('d-customer');
+  const amount   = v('d-amount');
+  const date     = v('d-date');
+  const note     = v('d-note');
+
+  if (!quoteNo || !amount || !date) { toast('⚠️ กรุณากรอกข้อมูลให้ครบ', 'err'); return; }
+  if (+amount <= 0)                 { toast('⚠️ จำนวนเงินต้องมากกว่า 0', 'err'); return; }
+
+  setBtnLoading('d-btn', true);
+  try {
+    const res = await api({
+      action: 'saveDeposit',
+      lineUserId, adminName, quoteNo, customer, amount: +amount, date, note
+    });
+    if (res.status === 'success') {
+      toast('✅ บันทึกมัดจำสำเร็จ', 'ok');
+      clearForm(['d-quote','d-customer','d-amount','d-note']);
+      setTodayDates();
+      await loadRecent();
+    } else {
+      toast('❌ บันทึกไม่สำเร็จ: ' + (res.message || ''), 'err');
+    }
+  } catch (e) { toast('❌ เกิดข้อผิดพลาด', 'err'); }
+  setBtnLoading('d-btn', false, '✅ บันทึกรับมัดจำ');
+}
+
+/* ---------- Submit Balance ---------- */
+async function doSubmitBalance() {
+  const quoteNo  = v('b-quote');
+  const customer = v('b-customer');
+  const amount   = v('b-amount');
+  const date     = v('b-date');
+  const note     = v('b-note');
+
+  if (!quoteNo || !amount || !date) { toast('⚠️ กรุณากรอกข้อมูลให้ครบ', 'err'); return; }
+  if (+amount <= 0)                 { toast('⚠️ จำนวนเงินต้องมากกว่า 0', 'err'); return; }
+
+  setBtnLoading('b-btn', true);
+  try {
+    const res = await api({
+      action: 'saveBalance',
+      lineUserId, adminName, quoteNo, customer, amount: +amount, date, note
+    });
+    if (res.status === 'success') {
+      toast('✅ บันทึกยอดคงเหลือสำเร็จ', 'ok');
+      clearForm(['b-quote','b-customer','b-amount','b-note']);
+      setTodayDates();
+      await loadRecent();
+    } else {
+      toast('❌ บันทึกไม่สำเร็จ: ' + (res.message || ''), 'err');
+    }
+  } catch (e) { toast('❌ เกิดข้อผิดพลาด', 'err'); }
+  setBtnLoading('b-btn', false, '✅ บันทึกรับยอดคงเหลือ');
+}
+
+/* ---------- Load Recent ---------- */
+async function loadRecent() {
+  try {
+    const res = await api({ action: 'getRecent', limit: 5 });
+    renderRecent('recent-deposit', res.deposits || []);
+    renderRecent('recent-balance', res.balances  || []);
+  } catch (e) { console.warn('loadRecent error:', e); }
+}
+
+function renderRecent(id, items) {
+  const el = document.getElementById(id);
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div>';
+    return;
+  }
+  el.innerHTML = items.map(r => `
+    <div class="recent-row">
+      <div>
+        <div class="rr-name">${r.quoteNo} — ${r.customer || '—'}</div>
+        <div class="rr-meta">${r.date} · ${r.by || '—'}</div>
+      </div>
+      <div class="rr-amount">฿${fmt(r.amount)}</div>
+    </div>
+  `).join('');
+}
+
+/* ---------- Navigation ---------- */
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* ---------- API Helper ---------- */
+async function api(payload) {
+  const res = await fetch(GAS_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+/* ---------- UI Helpers ---------- */
+function v(id) { return document.getElementById(id).value.trim(); }
+
+function setTodayDates() {
+  const t = new Date().toISOString().split('T')[0];
+  ['d-date','b-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = t;
+  });
+}
+
+function setHeaderDate() {
+  const el = document.getElementById('hdr-date');
+  if (el) el.textContent = new Date().toLocaleDateString('th-TH', {
+    weekday:'long', year:'numeric', month:'long', day:'numeric'
+  });
+}
+
+function hideLoading() {
+  const el = document.getElementById('loading');
+  el.style.opacity = '0';
+  setTimeout(() => el.style.display = 'none', 420);
+}
+
+function showEl(id, display) {
+  document.getElementById(id).style.display = display;
+}
+
+function showAuthErr(msg) {
+  const el = document.getElementById('auth-err');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function clearForm(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.tagName === 'SELECT' ? (el.selectedIndex = 0) : (el.value = '');
+  });
+}
+
+function setBtnLoading(id, loading, label) {
+  const btn = document.getElementById(id);
+  btn.disabled = loading;
+  if (loading) btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0 auto;"></div>';
+  else if (label) btn.innerHTML = label;
+}
+
+function fmt(n) {
+  return Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 });
+}
+
+let _toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + (type || '');
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+/* ---------- Start ---------- */
+init();
+</script>
+</body>
+</html>
