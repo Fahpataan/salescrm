@@ -647,8 +647,12 @@ async function doSubmitDeposit() {
   setBtnLoad('d-btn', true);
   try {
     const slip = buildSlipPayload('d');
+    const file = slipFile['d']; // 🌟 1. ดึงไฟล์รูปที่เซลล์อัปโหลดไว้
+
+    // 🌟 2. เพิ่มคำว่า file เข้าไปต่อท้ายในวงเล็บนี้
     const res  = await api({ action:'saveDeposit', lineUserId, adminName,
-                              quoteNo, customer, amount:+amount, date, note, slip });
+                              quoteNo, customer, amount:+amount, date, note, slip, file });
+                              
     if (res.status === 'success') {
       toast('✅ บันทึกมัดจำ + แจ้ง LINE แล้ว', 'ok');
       resetForm('d');
@@ -672,8 +676,12 @@ async function doSubmitBalance() {
   setBtnLoad('b-btn', true);
   try {
     const slip = buildSlipPayload('b');
+    const file = slipFile['b']; // 🌟 1. ดึงไฟล์รูปที่เซลล์อัปโหลดไว้
+
+    // 🌟 2. เพิ่มคำว่า file เข้าไปต่อท้ายในวงเล็บนี้
     const res  = await api({ action:'saveBalance', lineUserId, adminName,
-                              quoteNo, customer, amount:+amount, date, note, slip });
+                              quoteNo, customer, amount:+amount, date, note, slip, file });
+                              
     if (res.status === 'success') {
       toast('✅ บันทึกยอดคงเหลือ + แจ้ง LINE แล้ว', 'ok');
       resetForm('b');
