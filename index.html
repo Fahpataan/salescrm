@@ -409,6 +409,7 @@ let slipData    = { d: null, b: null };   // slip verify result per tab
 let slipFile    = { d: null, b: null };   // base64 file data per tab
 
 /* ─── Init ─── */
+/* ─── Init (อัปเกรด โหลดเร็วปรี๊ด 0.1 วิ) ─── */
 async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
@@ -420,27 +421,61 @@ async function init() {
     setTodayDates();
     setHeaderDate();
 
-    const res = await api({ action: 'checkAdmin', lineUserId });
-    if (res.status === 'approved') {
-      adminName = res.name;
-      await afterAuth();
-    } else {
+    // 🌟 พระเอกของเรา: ตั้งกุญแจจำสิทธิ์ในเครื่องมือถือ
+    const cacheKey = 'fahpataan_admin_' + lineUserId;
+    const cachedAdmin = localStorage.getItem(cacheKey);
+
+    if (cachedAdmin) {
+      // 🚀 วิธีที่ 2: ถ้าเคยเข้าแล้ว ให้เปิดหน้าเว็บเลยทันที (ไม่ต้องรอ API)
+      adminName = cachedAdmin;
+      document.getElementById('hdr-admin').textContent = '👤 ' + adminName;
+      
       hideLoading();
-      showEl('auth', 'flex');
+      showEl('auth', 'none');
+      showEl('app', 'block');
+      
+      // แอบไปดึงรายการล่าสุดเบื้องหลัง (หน้าจอไม่ค้าง)
+      loadRecent();
+      
+    } else {
+      // 🚀 วิธีที่ 1: เพิ่งเข้าครั้งแรก ให้รวบตึงข้อมูลมาทีเดียว (เช็คแอดมิน + รายการล่าสุด)
+      const res = await api({ action: 'getInitData', lineUserId: lineUserId });
+      
+      if (res && res.isAdmin) {
+        adminName = res.adminName;
+        // ส่งข้อมูลรายการล่าสุดไปแสดงผล และจัดการหน้าจอ
+        await afterAuth(res);
+      } else {
+        // ถ้าไม่ผ่าน/ไม่ใช่แอดมิน ให้โชว์หน้ากรอก PIN
+        hideLoading();
+        showEl('auth', 'flex');
+      }
     }
   } catch (err) {
     console.error(err);
     if (['localhost','127.0.0.1'].includes(location.hostname)) {
-      setTodayDates(); setHeaderDate(); hideLoading(); showEl('app','block');
+      setTodayDates(); setHeaderDate();
+      hideLoading(); showEl('app','block');
     } else {
       toast('⚠️ เกิดข้อผิดพลาด กรุณาลองใหม่','err'); hideLoading();
     }
   }
 }
 
-async function afterAuth() {
+async function afterAuth(initialData = null) {
   document.getElementById('hdr-admin').textContent = '👤 ' + adminName;
-  await loadRecent();
+  
+  // จำสิทธิ์เข้าใช้งานไว้ในเครื่อง รอบหน้าจะได้ไม่ต้องรอโหลด
+  localStorage.setItem('fahpataan_admin_' + lineUserId, adminName);
+
+  // ถ้าระบบส่งข้อมูลมาให้แล้ว (จาก getInitData) ให้แสดงเลย ไม่ต้องโหลดซ้ำ
+  if (initialData && (initialData.recentDeposits || initialData.recentBalances)) {
+    renderRecent('recent-deposit', initialData.recentDeposits || [], false);
+    renderRecent('recent-balance', initialData.recentBalances || [], true);
+  } else {
+    await loadRecent();
+  }
+  
   hideLoading();
   showEl('auth','none');
   showEl('app','block');
