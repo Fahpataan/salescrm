@@ -443,10 +443,25 @@ async function doVerifyPin() {
   setBtnLoad('auth-btn', false, '🔓 เข้าใช้งาน');
 }
 
+/* ─── แปลงวันที่จาก input[type=date] → yyyy-MM-dd (ค.ศ. เสมอ) ─── */
+function normDateInput(val) {
+  if (!val) return '';
+  // input[type=date] ส่งมาเป็น "yyyy-MM-dd"
+  // แต่ iOS/Android ภาษาไทยอาจส่งปี พ.ศ. เช่น "2569-02-27"
+  const parts = val.split('-');
+  if (parts.length === 3) {
+    let y = parseInt(parts[0], 10);
+    if (y > 2500) y -= 543;          // พ.ศ. → ค.ศ.
+    return y + '-' + parts[1] + '-' + parts[2];
+  }
+  return val;
+}
+
 /* ─── Search Quotes by Event Date ─── */
 async function searchQuotes(tab) {
   const p    = tab === 'deposit' ? 'd' : 'b';
-  const date = document.getElementById(p + '-event-date').value;
+  const raw  = document.getElementById(p + '-event-date').value;
+  const date = normDateInput(raw);   // ← แปลง พ.ศ.→ค.ศ. ก่อนส่ง
   const sel  = document.getElementById(p + '-quote');
   const cnt  = document.getElementById(p + '-result-count');
 
