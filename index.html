@@ -7,226 +7,192 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
   <style>
-    /* ===== Reset & Root ===== */
     :root {
-      --green:      #06C755;
-      --green-dark: #00A040;
-      --bg:         #f0f4f8;
-      --card:       #ffffff;
-      --text:       #1a1a2e;
-      --muted:      #6b7280;
-      --border:     #e5e7eb;
-      --nav-h:      66px;
-      --radius:     14px;
-      --shadow:     0 2px 12px rgba(0,0,0,0.08);
+      --green:  #06C755; --green-dk: #00A040;
+      --blue:   #0066CC; --blue-dk:  #0052A3;
+      --bg:     #f0f4f8; --card: #fff;
+      --text:   #1a1a2e; --muted: #6b7280;
+      --border: #e5e7eb; --nav-h: 66px; --r: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,.08);
     }
-    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    body {
-      font-family:'Prompt',sans-serif;
-      background:var(--bg);
-      color:var(--text);
-      min-height:100vh;
-      max-width:480px;
-      margin:0 auto;
-    }
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{font-family:'Prompt',sans-serif;background:var(--bg);color:var(--text);
+         min-height:100vh;max-width:480px;margin:0 auto}
 
-    /* ===== Loading ===== */
-    #loading {
-      position:fixed; inset:0;
-      background:linear-gradient(160deg, #06C755 0%, #00A040 100%);
-      display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      z-index:9999; color:#fff;
-      transition:opacity .4s;
-    }
-    #loading .logo  { font-size:52px; margin-bottom:10px; }
-    #loading .title { font-size:20px; font-weight:600; letter-spacing:.5px; }
-    #loading .sub   { font-size:13px; opacity:.75; margin-top:4px; }
-    .spinner {
-      width:34px; height:34px; margin-top:28px;
-      border:3px solid rgba(255,255,255,.3);
-      border-top-color:#fff;
-      border-radius:50%;
-      animation:spin .7s linear infinite;
-    }
-    @keyframes spin { to { transform:rotate(360deg); } }
+    /* ── Loading ── */
+    #loading{position:fixed;inset:0;background:linear-gradient(160deg,#06C755,#00A040);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      z-index:9999;color:#fff;transition:opacity .4s}
+    #loading .logo{font-size:52px;margin-bottom:10px}
+    #loading .ttl{font-size:20px;font-weight:600}
+    #loading .sub{font-size:13px;opacity:.75;margin-top:4px}
+    .spinner{width:34px;height:34px;margin-top:28px;border:3px solid rgba(255,255,255,.3);
+      border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* ===== Auth Screen ===== */
-    #auth {
-      display:none; min-height:100vh;
-      padding:32px 20px;
-      align-items:center; justify-content:center;
-      flex-direction:column;
-    }
-    .auth-card {
-      background:#fff; border-radius:20px;
-      padding:32px 24px; width:100%;
-      box-shadow:var(--shadow);
-    }
-    .auth-head { text-align:center; margin-bottom:24px; }
-    .auth-head .icon { font-size:54px; }
-    .auth-head h2 { font-size:20px; font-weight:600; margin-top:8px; }
-    .auth-head p  { font-size:13px; color:var(--muted); margin-top:4px; }
+    /* ── Auth ── */
+    #auth{display:none;min-height:100vh;padding:32px 20px;
+      align-items:center;justify-content:center;flex-direction:column}
+    .auth-card{background:#fff;border-radius:20px;padding:32px 24px;width:100%;box-shadow:var(--shadow)}
+    .auth-head{text-align:center;margin-bottom:24px}
+    .auth-head .ico{font-size:54px}
+    .auth-head h2{font-size:20px;font-weight:600;margin-top:8px}
+    .auth-head p{font-size:13px;color:var(--muted);margin-top:4px}
 
-    /* ===== Main App ===== */
-    #app { display:none; min-height:100vh; padding-bottom:var(--nav-h); }
+    /* ── App ── */
+    #app{display:none;min-height:100vh;padding-bottom:var(--nav-h)}
+    .header{background:linear-gradient(135deg,#06C755,#00A040);color:#fff;
+      padding:14px 20px 12px;position:sticky;top:0;z-index:200}
+    .hdr-row{display:flex;align-items:center;justify-content:space-between}
+    .hdr-logo{font-size:18px;font-weight:700}
+    .hdr-admin{font-size:12px;opacity:.85;background:rgba(255,255,255,.2);
+      padding:3px 10px;border-radius:20px}
+    .hdr-date{font-size:12px;opacity:.7;margin-top:4px}
 
-    /* Header */
-    .header {
-      background:linear-gradient(135deg,#06C755,#00A040);
-      color:#fff; padding:14px 20px 12px;
-      position:sticky; top:0; z-index:200;
-    }
-    .header-row  { display:flex; align-items:center; justify-content:space-between; }
-    .header-logo { font-size:18px; font-weight:700; letter-spacing:.3px; }
-    .header-admin{ font-size:12px; opacity:.85; background:rgba(255,255,255,.18);
-                   padding:3px 10px; border-radius:20px; }
-    .header-date { font-size:12px; opacity:.7; margin-top:4px; }
+    /* ── Pages ── */
+    .page{padding:14px 14px 20px;display:none;animation:fi .25s}
+    .page.active{display:block}
+    @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-    /* Page containers */
-    .page { padding:14px 14px 20px; display:none; animation:fadeIn .25s; }
-    .page.active { display:block; }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    /* ── Cards ── */
+    .card{background:var(--card);border-radius:var(--r);padding:18px 16px;
+      margin-bottom:14px;box-shadow:var(--shadow)}
+    .card-title{font-size:15px;font-weight:600;margin-bottom:14px;
+      display:flex;align-items:center;gap:8px}
+    .badge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;
+      background:#e7f8ef;color:var(--green-dk)}
+    .badge.blue{background:#e8f0fb;color:var(--blue-dk)}
 
-    /* Cards */
-    .card {
-      background:var(--card); border-radius:var(--radius);
-      padding:18px 16px; margin-bottom:14px;
-      box-shadow:var(--shadow);
-    }
-    .card-title {
-      font-size:15px; font-weight:600; margin-bottom:16px;
-      display:flex; align-items:center; gap:8px;
-    }
-    .card-title .badge {
-      font-size:11px; font-weight:500; padding:2px 8px;
-      border-radius:20px; background:#e7f8ef; color:var(--green-dark);
-    }
+    /* ── Search bar ── */
+    .search-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:16px}
+    .search-row .fg{flex:1;margin:0}
+    .btn-search{padding:11px 14px;background:var(--green);color:#fff;border:none;
+      border-radius:10px;font-size:14px;font-weight:600;font-family:'Prompt',sans-serif;
+      cursor:pointer;white-space:nowrap;transition:background .15s}
+    .btn-search:active{background:var(--green-dk)}
+    .btn-search.blue{background:var(--blue)}
+    .btn-search.blue:active{background:var(--blue-dk)}
 
-    /* Form elements */
-    .fg { margin-bottom:14px; }
-    label.lbl {
-      display:block; font-size:12px; font-weight:500;
-      color:var(--muted); margin-bottom:5px;
-    }
-    label.lbl .req { color:#ef4444; margin-left:2px; }
-    .ctrl {
-      width:100%; padding:11px 13px;
-      border:1.5px solid var(--border); border-radius:10px;
-      font-size:15px; font-family:'Prompt',sans-serif;
-      color:var(--text); background:#fff;
-      transition:border-color .2s;
-      -webkit-appearance:none; appearance:none;
-    }
-    .ctrl:focus { outline:none; border-color:var(--green); }
-    select.ctrl {
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-      background-repeat:no-repeat;
-      background-position:right 10px center;
-      background-size:22px; padding-right:34px;
-    }
-    textarea.ctrl { resize:none; }
-    .amt-wrap { position:relative; }
-    .amt-pfx {
-      position:absolute; left:13px; top:50%; transform:translateY(-50%);
-      font-size:15px; color:var(--muted); pointer-events:none;
-    }
-    .amt-wrap .ctrl { padding-left:28px; }
+    /* ── Form ── */
+    .fg{margin-bottom:14px}
+    label.lbl{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
+    label.lbl .req{color:#ef4444;margin-left:2px}
+    .ctrl{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;
+      font-size:15px;font-family:'Prompt',sans-serif;color:var(--text);background:#fff;
+      transition:border-color .2s;-webkit-appearance:none;appearance:none}
+    .ctrl:focus{outline:none;border-color:var(--green)}
+    select.ctrl{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 10px center;
+      background-size:22px;padding-right:34px}
+    textarea.ctrl{resize:none}
+    .amt-wrap{position:relative}
+    .amt-pfx{position:absolute;left:13px;top:50%;transform:translateY(-50%);
+      font-size:15px;color:var(--muted);pointer-events:none}
+    .amt-wrap .ctrl{padding-left:28px}
 
-    /* Buttons */
-    .btn {
-      width:100%; padding:13px; border:none; border-radius:11px;
-      font-size:16px; font-weight:600; font-family:'Prompt',sans-serif;
-      cursor:pointer; transition:all .15s;
-      display:flex; align-items:center; justify-content:center; gap:8px;
-    }
-    .btn-primary { background:var(--green); color:#fff; }
-    .btn-primary:active { transform:scale(.97); background:var(--green-dark); }
-    .btn-primary:disabled { background:#9de0be; cursor:not-allowed; transform:none; }
+    /* ── Slip Upload ── */
+    .slip-section{border:2px dashed var(--border);border-radius:12px;
+      padding:16px;text-align:center;cursor:pointer;transition:border-color .2s;
+      margin-bottom:14px;position:relative}
+    .slip-section:hover{border-color:var(--green)}
+    .slip-section.has-img{border-style:solid;border-color:var(--green)}
+    .slip-ico{font-size:32px;margin-bottom:6px}
+    .slip-txt{font-size:13px;color:var(--muted)}
+    .slip-section input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    #slip-preview-d,#slip-preview-b{
+      width:100%;max-height:240px;object-fit:contain;border-radius:8px;margin-bottom:8px;display:none}
 
-    /* Bottom Navigation */
-    .bottom-nav {
-      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
-      width:100%; max-width:480px; height:var(--nav-h);
-      background:#fff; border-top:1px solid var(--border);
-      display:flex; z-index:300;
-      box-shadow:0 -3px 12px rgba(0,0,0,.07);
-    }
-    .nav-item {
-      flex:1; display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      gap:3px; cursor:pointer; padding:6px 0;
-      transition:background .15s;
-    }
-    .nav-item:active { background:#f3f4f6; }
-    .nav-icon  { font-size:27px; transition:transform .2s; }
-    .nav-label { font-size:11px; font-weight:500; color:var(--muted); transition:color .2s; }
-    .nav-item.active .nav-label { color:var(--green); font-weight:700; }
-    .nav-item.active .nav-icon  { transform:scale(1.12); }
+    /* ── Verify Badge ── */
+    .verify-box{border-radius:10px;padding:10px 12px;margin-bottom:14px;display:none;
+      font-size:13px;font-weight:500;align-items:center;gap:8px}
+    .verify-box.ok{background:#e7f8ef;color:#00703c;display:flex}
+    .verify-box.delay{background:#fff8e1;color:#b45309;display:flex}
+    .verify-box.fail{background:#fef2f2;color:#b91c1c;display:flex}
+    .verify-box.skip{background:#f3f4f6;color:var(--muted);display:flex}
+    .v-ico{font-size:20px}
 
-    /* Recent list */
-    .recent-row {
-      display:flex; justify-content:space-between; align-items:center;
-      padding:10px 0; border-bottom:1px solid #f3f4f6;
-    }
-    .recent-row:last-child { border:none; }
-    .rr-name { font-size:14px; font-weight:500; }
-    .rr-meta { font-size:11px; color:var(--muted); margin-top:2px; }
-    .rr-amount { font-size:15px; font-weight:700; color:var(--green); white-space:nowrap; margin-left:8px; }
+    /* ── Verify button ── */
+    .btn-verify{width:100%;padding:10px;background:#f3f4f6;color:var(--text);
+      border:1.5px solid var(--border);border-radius:10px;font-size:14px;
+      font-weight:600;font-family:'Prompt',sans-serif;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:6px;
+      margin-bottom:12px;transition:all .15s}
+    .btn-verify:hover{border-color:var(--green);color:var(--green)}
+    .btn-verify:disabled{opacity:.5;cursor:not-allowed}
 
-    /* Empty */
-    .empty { text-align:center; padding:28px 20px; color:var(--muted); }
-    .empty .ico { font-size:40px; margin-bottom:10px; }
-    .empty p { font-size:13px; }
+    /* ── Submit ── */
+    .btn{width:100%;padding:13px;border:none;border-radius:11px;font-size:16px;
+      font-weight:600;font-family:'Prompt',sans-serif;cursor:pointer;transition:all .15s;
+      display:flex;align-items:center;justify-content:center;gap:8px}
+    .btn-primary{background:var(--green);color:#fff}
+    .btn-primary:active{transform:scale(.97);background:var(--green-dk)}
+    .btn-primary:disabled{background:#9de0be;cursor:not-allowed;transform:none}
+    .btn-primary.blue{background:var(--blue)}
+    .btn-primary.blue:active{background:var(--blue-dk)}
+    .btn-primary.blue:disabled{background:#a3c4e8}
 
-    /* Auth error */
-    .auth-err { color:#ef4444; font-size:13px; margin-bottom:12px; display:none; }
+    /* ── Bottom Nav ── */
+    .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+      width:100%;max-width:480px;height:var(--nav-h);background:#fff;
+      border-top:1px solid var(--border);display:flex;z-index:300;
+      box-shadow:0 -3px 12px rgba(0,0,0,.07)}
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;gap:3px;cursor:pointer;padding:6px 0;transition:background .15s}
+    .nav-item:active{background:#f3f4f6}
+    .nav-icon{font-size:27px;transition:transform .2s}
+    .nav-label{font-size:11px;font-weight:500;color:var(--muted);transition:color .2s}
+    .nav-item.active .nav-label{color:var(--green);font-weight:700}
+    .nav-item.active .nav-icon{transform:scale(1.12)}
+    .nav-item.active.blue-nav .nav-label{color:var(--blue)}
+    .nav-divider{width:1px;background:var(--border);margin:10px 0;align-self:stretch}
 
-    /* Toast */
-    .toast {
-      position:fixed; bottom:calc(var(--nav-h) + 14px);
-      left:50%; transform:translateX(-50%) translateY(16px);
-      background:#1a1a2e; color:#fff;
-      padding:11px 22px; border-radius:30px;
-      font-size:14px; opacity:0;
-      transition:all .3s; z-index:9999;
-      pointer-events:none; white-space:nowrap;
-      box-shadow:0 4px 16px rgba(0,0,0,.2);
-    }
-    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-    .toast.ok  { background:var(--green); }
-    .toast.err { background:#ef4444; }
+    /* ── Recent ── */
+    .recent-row{display:flex;justify-content:space-between;align-items:center;
+      padding:10px 0;border-bottom:1px solid #f3f4f6}
+    .recent-row:last-child{border:none}
+    .rr-name{font-size:14px;font-weight:500}
+    .rr-meta{font-size:11px;color:var(--muted);margin-top:2px}
+    .rr-amt{font-size:15px;font-weight:700;color:var(--green);white-space:nowrap;margin-left:8px}
+    .rr-amt.blue{color:var(--blue)}
+    .empty{text-align:center;padding:24px 20px;color:var(--muted)}
+    .empty .ico{font-size:36px;margin-bottom:8px}
+    .empty p{font-size:13px}
 
-    /* PIN style */
-    .pin-ctrl { text-align:center; letter-spacing:10px; font-size:22px; font-weight:600; }
+    /* ── Auth err / Toast ── */
+    .auth-err{color:#ef4444;font-size:13px;margin-bottom:12px;display:none}
+    .pin-ctrl{text-align:center;letter-spacing:10px;font-size:22px;font-weight:600}
+    .toast{position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;
+      transform:translateX(-50%) translateY(16px);background:#1a1a2e;color:#fff;
+      padding:11px 22px;border-radius:30px;font-size:14px;opacity:0;
+      transition:all .3s;z-index:9999;pointer-events:none;white-space:nowrap;
+      box-shadow:0 4px 16px rgba(0,0,0,.2)}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast.ok{background:var(--green)}
+    .toast.err{background:#ef4444}
 
-    /* Divider between nav items */
-    .nav-divider {
-      width:1px; background:var(--border); margin:10px 0; align-self:stretch;
-    }
+    /* ── Results count ── */
+    .result-count{font-size:12px;color:var(--muted);margin:-6px 0 10px;padding-left:2px}
   </style>
 </head>
 <body>
 
-<!-- ========== Loading ========== -->
+<!-- Loading -->
 <div id="loading">
   <div class="logo">💰</div>
-  <div class="title">บันทึกรับยอด</div>
+  <div class="ttl">บันทึกรับยอด</div>
   <div class="sub">ฟ้าประทาน จำกัด</div>
   <div class="spinner"></div>
 </div>
 
-<!-- ========== Auth ========== -->
+<!-- Auth -->
 <div id="auth">
   <div class="auth-card">
     <div class="auth-head">
-      <div class="icon">🔐</div>
+      <div class="ico">🔐</div>
       <h2>ยืนยันตัวตน</h2>
-      <p>กรอก PIN เพื่อเชื่อม LINE ของคุณกับบัญชีแอดมิน</p>
+      <p>กรอก PIN เพื่อเชื่อม LINE กับบัญชีแอดมิน</p>
     </div>
-
     <div class="fg">
       <label class="lbl">LINE Display Name</label>
       <input type="text" class="ctrl" id="auth-name" readonly />
@@ -243,36 +209,60 @@
   </div>
 </div>
 
-<!-- ========== Main App ========== -->
+<!-- App -->
 <div id="app">
-
-  <!-- Header -->
   <div class="header">
-    <div class="header-row">
-      <div class="header-logo">💰 บันทึกรับยอด</div>
-      <div class="header-admin" id="hdr-admin">—</div>
+    <div class="hdr-row">
+      <div class="hdr-logo">💰 บันทึกรับยอด</div>
+      <div class="hdr-admin" id="hdr-admin">—</div>
     </div>
-    <div class="header-date" id="hdr-date"></div>
+    <div class="hdr-date" id="hdr-date"></div>
   </div>
 
-  <!-- ---- Page: มัดจำ ---- -->
+  <!-- ════ PAGE: มัดจำ ════ -->
   <div class="page active" id="page-deposit">
     <div class="card">
-      <div class="card-title">
-        <span>📥</span> รับยอดมัดจำ
-        <span class="badge">Deposit</span>
+      <div class="card-title">📥 รับยอดมัดจำ <span class="badge">Deposit</span></div>
+
+      <!-- ค้นหาจากวันที่จัดงาน -->
+      <div class="search-row">
+        <div class="fg">
+          <label class="lbl">🗓 วันที่จัดงาน (ค้นหาลูกค้า)</label>
+          <input type="date" class="ctrl" id="d-event-date" />
+        </div>
+        <button class="btn-search" onclick="searchQuotes('deposit')">ค้นหา</button>
       </div>
+      <div class="result-count" id="d-result-count"></div>
 
       <div class="fg">
-        <label class="lbl">ลูกค้า / เลขที่ใบเสนอราคา <span class="req">*</span></label>
+        <label class="lbl">ลูกค้า / Quote <span class="req">*</span></label>
         <select class="ctrl" id="d-quote">
-          <option value="">-- เลือก Quote --</option>
+          <option value="">— กดค้นหาหรือเลือก Quote —</option>
         </select>
       </div>
       <div class="fg">
         <label class="lbl">ชื่อลูกค้า</label>
         <input type="text" class="ctrl" id="d-customer" placeholder="ดึงอัตโนมัติ / กรอกเอง" />
       </div>
+
+      <!-- Slip Upload -->
+      <label class="lbl">📎 อัปโหลดสลิป</label>
+      <div class="slip-section" id="slip-zone-d">
+        <img id="slip-preview-d" alt="slip" />
+        <div id="slip-placeholder-d">
+          <div class="slip-ico">🧾</div>
+          <div class="slip-txt">แตะเพื่อเลือกรูปสลิป / ถ่ายรูป</div>
+        </div>
+        <input type="file" accept="image/*" id="slip-file-d" onchange="onSlipSelected('d')" />
+      </div>
+      <button class="btn-verify" id="d-verify-btn" onclick="doVerifySlip('d')" disabled>
+        <span>🔍</span> ตรวจสลิปด้วย SlipOK
+      </button>
+      <div class="verify-box" id="d-verify-box">
+        <span class="v-ico" id="d-v-ico">—</span>
+        <span id="d-v-msg">—</span>
+      </div>
+
       <div class="fg">
         <label class="lbl">จำนวนเงินมัดจำ (บาท) <span class="req">*</span></label>
         <div class="amt-wrap">
@@ -290,37 +280,60 @@
         <textarea class="ctrl" id="d-note" rows="2" placeholder="บันทึกเพิ่มเติม…"></textarea>
       </div>
       <button class="btn btn-primary" id="d-btn" onclick="doSubmitDeposit()">
-        <span>✅</span> บันทึกรับมัดจำ
+        <span>✅</span> บันทึก + ส่ง LINE
       </button>
     </div>
 
-    <!-- Recent -->
     <div class="card">
-      <div class="card-title"><span>📋</span> รายการล่าสุด (มัดจำ)</div>
-      <div id="recent-deposit">
-        <div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div>
-      </div>
+      <div class="card-title">📋 รายการล่าสุด (มัดจำ)</div>
+      <div id="recent-deposit"><div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div></div>
     </div>
   </div>
 
-  <!-- ---- Page: คงเหลือ ---- -->
+  <!-- ════ PAGE: คงเหลือ ════ -->
   <div class="page" id="page-balance">
     <div class="card">
-      <div class="card-title">
-        <span>💸</span> รับยอดคงเหลือ
-        <span class="badge">Balance</span>
+      <div class="card-title">💸 รับยอดคงเหลือ <span class="badge blue">Balance</span></div>
+
+      <!-- ค้นหาจากวันที่จัดงาน -->
+      <div class="search-row">
+        <div class="fg">
+          <label class="lbl">🗓 วันที่จัดงาน (ค้นหาลูกค้า)</label>
+          <input type="date" class="ctrl" id="b-event-date" />
+        </div>
+        <button class="btn-search blue" onclick="searchQuotes('balance')">ค้นหา</button>
       </div>
+      <div class="result-count" id="b-result-count"></div>
 
       <div class="fg">
-        <label class="lbl">ลูกค้า / เลขที่ใบเสนอราคา <span class="req">*</span></label>
+        <label class="lbl">ลูกค้า / Quote <span class="req">*</span></label>
         <select class="ctrl" id="b-quote">
-          <option value="">-- เลือก Quote --</option>
+          <option value="">— กดค้นหาหรือเลือก Quote —</option>
         </select>
       </div>
       <div class="fg">
         <label class="lbl">ชื่อลูกค้า</label>
         <input type="text" class="ctrl" id="b-customer" placeholder="ดึงอัตโนมัติ / กรอกเอง" />
       </div>
+
+      <!-- Slip Upload -->
+      <label class="lbl">📎 อัปโหลดสลิป</label>
+      <div class="slip-section" id="slip-zone-b">
+        <img id="slip-preview-b" alt="slip" />
+        <div id="slip-placeholder-b">
+          <div class="slip-ico">🧾</div>
+          <div class="slip-txt">แตะเพื่อเลือกรูปสลิป / ถ่ายรูป</div>
+        </div>
+        <input type="file" accept="image/*" id="slip-file-b" onchange="onSlipSelected('b')" />
+      </div>
+      <button class="btn-verify" id="b-verify-btn" onclick="doVerifySlip('b')" disabled>
+        <span>🔍</span> ตรวจสลิปด้วย SlipOK
+      </button>
+      <div class="verify-box" id="b-verify-box">
+        <span class="v-ico" id="b-v-ico">—</span>
+        <span id="b-v-msg">—</span>
+      </div>
+
       <div class="fg">
         <label class="lbl">จำนวนเงิน (บาท) <span class="req">*</span></label>
         <div class="amt-wrap">
@@ -337,70 +350,59 @@
         <label class="lbl">หมายเหตุ</label>
         <textarea class="ctrl" id="b-note" rows="2" placeholder="บันทึกเพิ่มเติม…"></textarea>
       </div>
-      <button class="btn btn-primary" id="b-btn" onclick="doSubmitBalance()">
-        <span>✅</span> บันทึกรับยอดคงเหลือ
+      <button class="btn btn-primary blue" id="b-btn" onclick="doSubmitBalance()">
+        <span>✅</span> บันทึก + ส่ง LINE
       </button>
     </div>
 
-    <!-- Recent -->
     <div class="card">
-      <div class="card-title"><span>📋</span> รายการล่าสุด (คงเหลือ)</div>
-      <div id="recent-balance">
-        <div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div>
-      </div>
+      <div class="card-title">📋 รายการล่าสุด (คงเหลือ)</div>
+      <div id="recent-balance"><div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div></div>
     </div>
   </div>
 
-  <!-- ---- Bottom Nav ---- -->
+  <!-- Bottom Nav -->
   <nav class="bottom-nav">
     <div class="nav-item active" id="nav-deposit" onclick="switchPage('deposit')">
       <div class="nav-icon">📥</div>
       <div class="nav-label">รับมัดจำ</div>
     </div>
     <div class="nav-divider"></div>
-    <div class="nav-item" id="nav-balance" onclick="switchPage('balance')">
+    <div class="nav-item blue-nav" id="nav-balance" onclick="switchPage('balance')">
       <div class="nav-icon">💸</div>
       <div class="nav-label">รับคงเหลือ</div>
     </div>
   </nav>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- ========== Script ========== -->
 <script>
-/* =====================================================
-   🔧 CONFIG — แก้ค่าด้านล่างก่อนใช้งาน
-   ===================================================== */
-const LIFF_ID  = '2009224163-ZyLVfnoq';   // ✅ LIFF ID
-const GAS_URL  = 'https://script.google.com/macros/s/AKfycbw6PZFfd0hjS1P8AvDZigtcFcGlpkr6Kvip0eCJQtJl4kOIFRc8L-EcuNPU95wa23acjg/exec'; // ✅ GAS URL
-/* ===================================================== */
+/* ═══════════════════════════════════════
+   CONFIG
+   ═══════════════════════════════════════ */
+const LIFF_ID = '2009224163-ZyLVfnoq';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw6PZFfd0hjS1P8AvDZigtcFcGlpkr6Kvip0eCJQtJl4kOIFRc8L-EcuNPU95wa23acjg/exec';
+/* ═══════════════════════════════════════ */
 
-let lineUserId   = '';
-let adminName    = '';
-let quotesCache  = [];   // [{quoteNo, customer}]
+let lineUserId  = '';
+let adminName   = '';
+let slipData    = { d: null, b: null };   // slip verify result per tab
+let slipFile    = { d: null, b: null };   // base64 file data per tab
 
-/* ---------- Bootstrap ---------- */
+/* ─── Init ─── */
 async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
 
-    if (!liff.isLoggedIn()) {
-      liff.login({ redirectUri: location.href });
-      return;
-    }
-
-    const profile  = await liff.getProfile();
-    lineUserId     = profile.userId;
-
+    const profile = await liff.getProfile();
+    lineUserId = profile.userId;
     document.getElementById('auth-name').value = profile.displayName;
     setTodayDates();
     setHeaderDate();
 
-    // ตรวจว่าเป็น Admin แล้วหรือยัง
     const res = await api({ action: 'checkAdmin', lineUserId });
-
     if (res.status === 'approved') {
       adminName = res.name;
       await afterAuth();
@@ -408,85 +410,162 @@ async function init() {
       hideLoading();
       showEl('auth', 'flex');
     }
-
   } catch (err) {
-    console.error('init error:', err);
-
-    // dev / localhost mode
+    console.error(err);
     if (['localhost','127.0.0.1'].includes(location.hostname)) {
-      setTodayDates();
-      setHeaderDate();
-      hideLoading();
-      showEl('app', 'block');
-      return;
+      setTodayDates(); setHeaderDate(); hideLoading(); showEl('app','block');
+    } else {
+      toast('⚠️ เกิดข้อผิดพลาด กรุณาลองใหม่','err'); hideLoading();
     }
-    toast('⚠️ ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่', 'err');
-    hideLoading();
   }
 }
 
 async function afterAuth() {
   document.getElementById('hdr-admin').textContent = '👤 ' + adminName;
-  await Promise.all([loadQuotes(), loadRecent()]);
+  await loadRecent();
   hideLoading();
-  showEl('auth', 'none');
-  showEl('app', 'block');
+  showEl('auth','none');
+  showEl('app','block');
 }
 
-/* ---------- Auth / PIN ---------- */
+/* ─── Auth PIN ─── */
 async function doVerifyPin() {
   const pin = document.getElementById('auth-pin').value.trim();
   if (!pin) { showAuthErr('กรุณากรอก PIN'); return; }
-
-  setBtnLoading('auth-btn', true);
+  setBtnLoad('auth-btn', true);
   try {
     const res = await api({ action: 'registerAdmin', lineUserId, pin });
-
-    if (res.status === 'approved') {
-      adminName = res.name;
-      await afterAuth();
-    } else if (res.status === 'already_linked') {
-      showAuthErr('LINE นี้ถูกลงทะเบียนไว้แล้ว — กรุณาติดต่อผู้ดูแล');
-    } else {
-      showAuthErr('PIN ไม่ถูกต้อง หรือถูกใช้งานไปแล้ว');
-    }
-  } catch (e) {
-    showAuthErr('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
-  }
-  setBtnLoading('auth-btn', false, '🔓 เข้าใช้งาน');
+    if (res.status === 'approved') { adminName = res.name; await afterAuth(); }
+    else if (res.status === 'already_linked') showAuthErr('LINE นี้ถูกลงทะเบียนไว้แล้ว');
+    else showAuthErr('PIN ไม่ถูกต้อง หรือถูกใช้งานไปแล้ว');
+  } catch(e) { showAuthErr('เกิดข้อผิดพลาด กรุณาลองใหม่'); }
+  setBtnLoad('auth-btn', false, '🔓 เข้าใช้งาน');
 }
 
-/* ---------- Load Quotes ---------- */
-async function loadQuotes() {
+/* ─── Search Quotes by Event Date ─── */
+async function searchQuotes(tab) {
+  const p    = tab === 'deposit' ? 'd' : 'b';
+  const date = document.getElementById(p + '-event-date').value;
+  const sel  = document.getElementById(p + '-quote');
+  const cnt  = document.getElementById(p + '-result-count');
+
+  if (!date) { toast('⚠️ กรุณาเลือกวันที่จัดงานก่อน','err'); return; }
+
+  cnt.textContent = '⏳ กำลังค้นหา…';
+  sel.innerHTML = '<option value="">⏳ กำลังโหลด…</option>';
+
   try {
-    const res  = await fetch(GAS_URL + '?action=getQuotes');
-    const data = await res.json();
-    quotesCache = data.quotes || [];
+    const url = `${GAS_URL}?action=getQuotesByDate&date=${date}&adminName=${encodeURIComponent(adminName)}`;
+    const res = await (await fetch(url)).json();
+    const quotes = res.quotes || [];
 
-    ['d-quote','b-quote'].forEach(id => {
-      const sel = document.getElementById(id);
-      quotesCache.forEach(q => {
-        sel.add(new Option(q.label, q.quoteNo));
-      });
-    });
-  } catch (e) {
-    console.warn('loadQuotes error:', e);
-  }
+    sel.innerHTML = '<option value="">— เลือก Quote —</option>';
+    quotes.forEach(q => sel.add(new Option(q.label, q.quoteNo, false, false)));
+
+    cnt.textContent = quotes.length
+      ? `พบ ${quotes.length} รายการ (ของ ${adminName})`
+      : '— ไม่พบรายการในวันที่นี้ —';
+
+    // ถ้ามีแค่ 1 รายการ → เลือกให้อัตโนมัติ
+    if (quotes.length === 1) {
+      sel.value = quotes[0].quoteNo;
+      document.getElementById(p + '-customer').value = quotes[0].customer;
+    }
+  } catch(e) { cnt.textContent = ''; toast('❌ ค้นหาไม่สำเร็จ','err'); }
 }
 
-/* ---------- Auto-fill customer name ---------- */
+/* ─── Quote change → auto-fill customer ─── */
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('d-quote').addEventListener('change', e => autoFill(e.target.value, 'd-customer'));
-  document.getElementById('b-quote').addEventListener('change', e => autoFill(e.target.value, 'b-customer'));
+  ['d','b'].forEach(p => {
+    document.getElementById(p + '-quote').addEventListener('change', function() {
+      const opt = this.options[this.selectedIndex];
+      if (opt && opt.text && opt.text.includes(' — ')) {
+        const cus = opt.text.split(' — ').slice(1).join(' — ');
+        document.getElementById(p + '-customer').value = cus;
+      }
+    });
+  });
 });
 
-function autoFill(quoteNo, custId) {
-  if (!quoteNo) return;
-  const found = quotesCache.find(q => q.quoteNo === quoteNo);
-  if (found) document.getElementById(custId).value = found.customer;
+/* ─── Slip Selected ─── */
+function onSlipSelected(p) {
+  const file = document.getElementById('slip-file-' + p).files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64 = e.target.result.split(',')[1];
+    slipFile[p] = { data: base64, mimeType: file.type, name: file.name };
+
+    // Preview
+    const preview = document.getElementById('slip-preview-' + p);
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('slip-placeholder-' + p).style.display = 'none';
+    document.getElementById('slip-zone-' + p).classList.add('has-img');
+
+    // Enable verify button
+    document.getElementById(p + '-verify-btn').disabled = false;
+
+    // Reset verify state
+    slipData[p] = null;
+    showVerifyBox(p, 'skip', '—', 'รอการตรวจสลิป');
+  };
+  reader.readAsDataURL(file);
 }
 
-/* ---------- Submit Deposit ---------- */
+/* ─── Verify Slip ─── */
+async function doVerifySlip(p) {
+  if (!slipFile[p]) { toast('⚠️ กรุณาเลือกรูปสลิปก่อน','err'); return; }
+
+  const btn = document.getElementById(p + '-verify-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div>';
+
+  try {
+    const res = await api({ action: 'verifySlip', file: slipFile[p] });
+
+    if (res.status !== 'ok' || !res.result) {
+      toast('❌ ตรวจสลิปไม่สำเร็จ: ' + (res.message || ''), 'err');
+      showVerifyBox(p, 'fail', '❌', 'ตรวจสลิปไม่สำเร็จ');
+    } else {
+      const r = res.result;
+      slipData[p] = r;
+
+      if (r.verified) {
+        showVerifyBox(p, 'ok', '✅', `VERIFIED — ฿${fmt(r.depositAmount)} (${r.sendingBank || '?'} → รับ)`);
+        // Auto-fill amount & date
+        if (r.depositAmount > 0)  document.getElementById(p + '-amount').value = r.depositAmount;
+        if (r.depositDate)         document.getElementById(p + '-date').value   = r.depositDate;
+        toast('✅ ตรวจสลิปสำเร็จ', 'ok');
+
+      } else if (r.verifyStatus === 'DELAY') {
+        showVerifyBox(p, 'delay', '⏳', `DELAY (รอ ${r.delayMin || '?'} นาที) — ` + r.verifyMessage);
+        if (r.depositAmount > 0) document.getElementById(p + '-amount').value = r.depositAmount;
+        if (r.depositDate)        document.getElementById(p + '-date').value   = r.depositDate;
+        toast('⏳ สลิปอยู่ระหว่างตรวจสอบ (DELAY)', '');
+
+      } else {
+        showVerifyBox(p, 'fail', '❌', `FAILED [${r.verifyCode}] — ` + r.verifyMessage);
+        toast('⚠️ สลิปตรวจไม่ผ่าน: ' + r.verifyMessage, 'err');
+      }
+    }
+  } catch(e) { toast('❌ เกิดข้อผิดพลาด: ' + e.message, 'err'); }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>🔍</span> ตรวจสลิปด้วย SlipOK';
+}
+
+function showVerifyBox(p, type, ico, msg) {
+  const box  = document.getElementById(p + '-verify-box');
+  const icoEl = document.getElementById(p + '-v-ico');
+  const msgEl = document.getElementById(p + '-v-msg');
+  box.className = 'verify-box ' + type;
+  icoEl.textContent = ico;
+  msgEl.textContent = msg;
+}
+
+/* ─── Submit Deposit ─── */
 async function doSubmitDeposit() {
   const quoteNo  = v('d-quote');
   const customer = v('d-customer');
@@ -494,28 +573,24 @@ async function doSubmitDeposit() {
   const date     = v('d-date');
   const note     = v('d-note');
 
-  if (!quoteNo || !amount || !date) { toast('⚠️ กรุณากรอกข้อมูลให้ครบ', 'err'); return; }
-  if (+amount <= 0)                 { toast('⚠️ จำนวนเงินต้องมากกว่า 0', 'err'); return; }
+  if (!quoteNo || !amount || !date) { toast('⚠️ กรุณากรอกข้อมูลให้ครบ','err'); return; }
+  if (+amount <= 0) { toast('⚠️ จำนวนเงินต้องมากกว่า 0','err'); return; }
 
-  setBtnLoading('d-btn', true);
+  setBtnLoad('d-btn', true);
   try {
-    const res = await api({
-      action: 'saveDeposit',
-      lineUserId, adminName, quoteNo, customer, amount: +amount, date, note
-    });
+    const slip = buildSlipPayload('d');
+    const res  = await api({ action:'saveDeposit', lineUserId, adminName,
+                              quoteNo, customer, amount:+amount, date, note, slip });
     if (res.status === 'success') {
-      toast('✅ บันทึกมัดจำสำเร็จ', 'ok');
-      clearForm(['d-quote','d-customer','d-amount','d-note']);
-      setTodayDates();
+      toast('✅ บันทึกมัดจำ + แจ้ง LINE แล้ว', 'ok');
+      resetForm('d');
       await loadRecent();
-    } else {
-      toast('❌ บันทึกไม่สำเร็จ: ' + (res.message || ''), 'err');
-    }
-  } catch (e) { toast('❌ เกิดข้อผิดพลาด', 'err'); }
-  setBtnLoading('d-btn', false, '✅ บันทึกรับมัดจำ');
+    } else { toast('❌ ' + (res.message || 'บันทึกไม่สำเร็จ'), 'err'); }
+  } catch(e) { toast('❌ ' + e.message, 'err'); }
+  setBtnLoad('d-btn', false, '✅ บันทึก + ส่ง LINE');
 }
 
-/* ---------- Submit Balance ---------- */
+/* ─── Submit Balance ─── */
 async function doSubmitBalance() {
   const quoteNo  = v('b-quote');
   const customer = v('b-customer');
@@ -523,37 +598,58 @@ async function doSubmitBalance() {
   const date     = v('b-date');
   const note     = v('b-note');
 
-  if (!quoteNo || !amount || !date) { toast('⚠️ กรุณากรอกข้อมูลให้ครบ', 'err'); return; }
-  if (+amount <= 0)                 { toast('⚠️ จำนวนเงินต้องมากกว่า 0', 'err'); return; }
+  if (!quoteNo || !amount || !date) { toast('⚠️ กรุณากรอกข้อมูลให้ครบ','err'); return; }
+  if (+amount <= 0) { toast('⚠️ จำนวนเงินต้องมากกว่า 0','err'); return; }
 
-  setBtnLoading('b-btn', true);
+  setBtnLoad('b-btn', true);
   try {
-    const res = await api({
-      action: 'saveBalance',
-      lineUserId, adminName, quoteNo, customer, amount: +amount, date, note
-    });
+    const slip = buildSlipPayload('b');
+    const res  = await api({ action:'saveBalance', lineUserId, adminName,
+                              quoteNo, customer, amount:+amount, date, note, slip });
     if (res.status === 'success') {
-      toast('✅ บันทึกยอดคงเหลือสำเร็จ', 'ok');
-      clearForm(['b-quote','b-customer','b-amount','b-note']);
-      setTodayDates();
+      toast('✅ บันทึกยอดคงเหลือ + แจ้ง LINE แล้ว', 'ok');
+      resetForm('b');
       await loadRecent();
-    } else {
-      toast('❌ บันทึกไม่สำเร็จ: ' + (res.message || ''), 'err');
-    }
-  } catch (e) { toast('❌ เกิดข้อผิดพลาด', 'err'); }
-  setBtnLoading('b-btn', false, '✅ บันทึกรับยอดคงเหลือ');
+    } else { toast('❌ ' + (res.message || 'บันทึกไม่สำเร็จ'), 'err'); }
+  } catch(e) { toast('❌ ' + e.message, 'err'); }
+  setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
 }
 
-/* ---------- Load Recent ---------- */
+function buildSlipPayload(p) {
+  const r = slipData[p];
+  if (!r) return { verifyStatus: 'SKIPPED' };
+  const d = r.slipData || {};
+  return {
+    verifyStatus:         r.verifyStatus,
+    verifyCode:           r.verifyCode,
+    verifyMessage:        r.verifyMessage,
+    transTimestamp:       d.transTimestamp    || '',
+    transRef:             d.transRef          || '',
+    transDate:            d.transDate         || '',
+    transTime:            d.transTime         || '',
+    sendingBank:          d.sendingBank        || '',
+    receivingBank:        d.receivingBank      || '',
+    transFeeAmount:       d.transFeeAmount     || 0,
+    senderDisplayName:    (d.sender && d.sender.displayName) || '',
+    senderName:           (d.sender && d.sender.name)        || '',
+    senderAccountValue:   (d.sender && d.sender.account && d.sender.account.value) || '',
+    receiverDisplayName:  (d.receiver && d.receiver.displayName) || '',
+    receiverName:         (d.receiver && d.receiver.name)        || '',
+    receiverAccountValue: (d.receiver && d.receiver.account && d.receiver.account.value) || '',
+    qrcodeData:           r.qrcodeData || ''
+  };
+}
+
+/* ─── Load Recent ─── */
 async function loadRecent() {
   try {
-    const res = await api({ action: 'getRecent', limit: 5 });
-    renderRecent('recent-deposit', res.deposits || []);
-    renderRecent('recent-balance', res.balances  || []);
-  } catch (e) { console.warn('loadRecent error:', e); }
+    const res = await api({ action:'getRecent', limit:5 });
+    renderRecent('recent-deposit', res.deposits||[], false);
+    renderRecent('recent-balance', res.balances||[], true);
+  } catch(e) {}
 }
 
-function renderRecent(id, items) {
+function renderRecent(id, items, isBlue) {
   const el = document.getElementById(id);
   if (!items.length) {
     el.innerHTML = '<div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div>';
@@ -562,96 +658,85 @@ function renderRecent(id, items) {
   el.innerHTML = items.map(r => `
     <div class="recent-row">
       <div>
-        <div class="rr-name">${r.quoteNo} — ${r.customer || '—'}</div>
-        <div class="rr-meta">${r.date} · ${r.by || '—'}</div>
+        <div class="rr-name">${r.quoteNo} — ${r.customer||'—'}</div>
+        <div class="rr-meta">${r.date} · ${r.by||'—'}</div>
       </div>
-      <div class="rr-amount">฿${fmt(r.amount)}</div>
-    </div>
-  `).join('');
+      <div class="rr-amt${isBlue?' blue':''}">฿${fmt(r.amount)}</div>
+    </div>`).join('');
 }
 
-/* ---------- Navigation ---------- */
+/* ─── Navigation ─── */
 function switchPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
-  document.getElementById('nav-' + page).classList.add('active');
-  window.scrollTo(0, 0);
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('nav-'+page).classList.add('active');
+  window.scrollTo(0,0);
 }
 
-/* ---------- API Helper ---------- */
+/* ─── API ─── */
 async function api(payload) {
   const res = await fetch(GAS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body:    JSON.stringify(payload)
+    method:'POST', headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify(payload)
   });
   return res.json();
 }
 
-/* ---------- UI Helpers ---------- */
+/* ─── Helpers ─── */
 function v(id) { return document.getElementById(id).value.trim(); }
 
 function setTodayDates() {
   const t = new Date().toISOString().split('T')[0];
-  ['d-date','b-date'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = t;
-  });
+  ['d-date','b-date'].forEach(id => { const el=document.getElementById(id); if(el) el.value=t; });
 }
-
 function setHeaderDate() {
   const el = document.getElementById('hdr-date');
-  if (el) el.textContent = new Date().toLocaleDateString('th-TH', {
-    weekday:'long', year:'numeric', month:'long', day:'numeric'
-  });
+  if (el) el.textContent = new Date().toLocaleDateString('th-TH',
+    { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 }
-
 function hideLoading() {
   const el = document.getElementById('loading');
   el.style.opacity = '0';
-  setTimeout(() => el.style.display = 'none', 420);
+  setTimeout(() => el.style.display='none', 420);
 }
-
-function showEl(id, display) {
-  document.getElementById(id).style.display = display;
-}
-
+function showEl(id, display) { document.getElementById(id).style.display = display; }
 function showAuthErr(msg) {
   const el = document.getElementById('auth-err');
   el.textContent = msg; el.style.display = 'block';
 }
-
-function clearForm(ids) {
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.tagName === 'SELECT' ? (el.selectedIndex = 0) : (el.value = '');
+function resetForm(p) {
+  ['quote','customer','amount','note'].forEach(f => {
+    const el = document.getElementById(p+'-'+f);
+    if (!el) return;
+    el.tagName==='SELECT' ? (el.selectedIndex=0) : (el.value='');
   });
+  setTodayDates();
+  // reset slip
+  slipData[p] = null; slipFile[p] = null;
+  document.getElementById('slip-preview-'+p).style.display = 'none';
+  document.getElementById('slip-placeholder-'+p).style.display = 'block';
+  document.getElementById('slip-zone-'+p).classList.remove('has-img');
+  document.getElementById('slip-file-'+p).value = '';
+  document.getElementById(p+'-verify-btn').disabled = true;
+  document.getElementById(p+'-verify-box').className = 'verify-box';
+  document.getElementById(p+'-result-count').textContent = '';
 }
-
-function setBtnLoading(id, loading, label) {
+function setBtnLoad(id, loading, label) {
   const btn = document.getElementById(id);
   btn.disabled = loading;
-  if (loading) btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0 auto;"></div>';
+  if (loading) btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0 auto"></div>';
   else if (label) btn.innerHTML = label;
 }
-
-function fmt(n) {
-  return Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 });
-}
-
-let _toastTimer;
+function fmt(n) { return Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2}); }
+let _tt;
 function toast(msg, type) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast ' + (type || '');
-  void el.offsetWidth;
-  el.classList.add('show');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+  el.textContent = msg; el.className = 'toast '+(type||'');
+  void el.offsetWidth; el.classList.add('show');
+  clearTimeout(_tt); _tt = setTimeout(()=>el.classList.remove('show'), 3200);
 }
 
-/* ---------- Start ---------- */
 init();
 </script>
 </body>
