@@ -256,7 +256,7 @@
         <input type="file" accept="image/*" id="slip-file-d" onchange="onSlipSelected('d')" />
       </div>
       <button class="btn-verify" id="d-verify-btn" onclick="doVerifySlip('d')" disabled>
-        <span>🔍</span> ตรวจสลิปด้วย SlipOK
+        <span>🔄</span> ตรวจสลิปใหม่อีกครั้ง
       </button>
       <div class="verify-box" id="d-verify-box">
         <span class="v-ico" id="d-v-ico">—</span>
@@ -327,7 +327,7 @@
         <input type="file" accept="image/*" id="slip-file-b" onchange="onSlipSelected('b')" />
       </div>
       <button class="btn-verify" id="b-verify-btn" onclick="doVerifySlip('b')" disabled>
-        <span>🔍</span> ตรวจสลิปด้วย SlipOK
+        <span>🔄</span> ตรวจสลิปใหม่อีกครั้ง
       </button>
       <div class="verify-box" id="b-verify-box">
         <span class="v-ico" id="b-v-ico">—</span>
@@ -455,7 +455,7 @@ async function searchQuotes(tab) {
   sel.innerHTML = '<option value="">⏳ กำลังโหลด…</option>';
 
   try {
-    const url = `${GAS_URL}?action=getQuotesByDate&date=${date}&adminName=${encodeURIComponent(adminName)}`;
+    const url = `${GAS_URL}?action=getQuotesByDate&date=${date}`;
     const res = await (await fetch(url)).json();
     const quotes = res.quotes || [];
 
@@ -487,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-/* ─── Slip Selected ─── */
+/* ─── Slip Selected → ตรวจอัตโนมัติทันที ─── */
 function onSlipSelected(p) {
   const file = document.getElementById('slip-file-' + p).files[0];
   if (!file) return;
@@ -504,12 +504,13 @@ function onSlipSelected(p) {
     document.getElementById('slip-placeholder-' + p).style.display = 'none';
     document.getElementById('slip-zone-' + p).classList.add('has-img');
 
-    // Enable verify button
-    document.getElementById(p + '-verify-btn').disabled = false;
-
-    // Reset verify state
+    // Reset verify state แล้วตรวจอัตโนมัติทันที
     slipData[p] = null;
-    showVerifyBox(p, 'skip', '—', 'รอการตรวจสลิป');
+    showVerifyBox(p, 'skip', '⏳', 'กำลังตรวจสอบสลิป…');
+    document.getElementById(p + '-verify-btn').disabled = true;
+
+    // ── Auto-verify ──
+    doVerifySlip(p);
   };
   reader.readAsDataURL(file);
 }
@@ -553,7 +554,7 @@ async function doVerifySlip(p) {
   } catch(e) { toast('❌ เกิดข้อผิดพลาด: ' + e.message, 'err'); }
 
   btn.disabled = false;
-  btn.innerHTML = '<span>🔍</span> ตรวจสลิปด้วย SlipOK';
+  btn.innerHTML = '<span>🔄</span> ตรวจสลิปใหม่อีกครั้ง';
 }
 
 function showVerifyBox(p, type, ico, msg) {
