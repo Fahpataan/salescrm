@@ -766,14 +766,24 @@ function renderRecent(id, items, isBlue) {
     el.innerHTML = '<div class="empty"><div class="ico">📭</div><p>ยังไม่มีรายการ</p></div>';
     return;
   }
-  el.innerHTML = items.map(r => `
+  const color = isBlue ? 'var(--blue)' : 'var(--green)';
+  el.innerHTML = items.map(r => {
+    const amtStr  = '฿' + fmt(r.amount);
+    const evLabel = r.eventDate ? '📅 ' + r.eventDate : (r.date || '');
+    const admin   = r.by ? '· ' + r.by : '';
+    return `
     <div class="recent-row">
-      <div>
-        <div class="rr-name">${r.quoteNo} — ${r.customer||'—'}</div>
-        <div class="rr-meta">${r.date} · ${r.by||'—'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="rr-name" style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            ${r.quoteNo||'—'} — ${r.customer||'—'}
+          </span>
+          <span style="color:${color};font-weight:700;font-size:15px;white-space:nowrap">${amtStr}</span>
+        </div>
+        <div class="rr-meta">${evLabel} ${admin}</div>
       </div>
-      <div class="rr-amt${isBlue?' blue':''}">฿${fmt(r.amount)}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 /* ─── Navigation ─── */
