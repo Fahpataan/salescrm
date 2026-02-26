@@ -748,8 +748,10 @@ async function doSubmitBalance() {
       balanceBefore: 0,
       receivedAmount: parseFloat(amount),
       receiveDate: date,
-      paymentMethod: 'โอนเงิน', // Default
-      bankName: d.sendingBank || '',
+      
+      // ✅ กำหนดเป็น 'โอน' เพื่อให้หลังบ้านนำไปต่อกับ bankName เป็น "โอน - กสิกรไทย" ได้ถูกต้อง
+      paymentMethod: 'โอน', 
+      bankName: d.sendingBank || '', // ดึงชื่อธนาคารจาก SlipOK ส่งไปด้วย
       chequeNo: '',
       note: note,
       
@@ -803,7 +805,7 @@ async function doSubmitBalance() {
     setBtnLoad('b-btn', false, '✅ บันทึกยอดคงเหลือ');
   }
 }
-
+  
 /* ─── Load Recent ─── */
 async function loadRecent() {
   try {
