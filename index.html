@@ -697,7 +697,7 @@ async function doSubmitDeposit() {
   setBtnLoad('d-btn', false, '✅ บันทึก + ส่ง LINE');
 }
 
-/* ─── Submit Balance (LIFF Version - Fixed Backend Match) ─── */
+/* ─── Submit Balance (ปรับโครงสร้างเลียนแบบตัวที่ทำงานได้ 100%) ─── */
 async function doSubmitBalance() {
   const quoteNo  = v('b-quote');
   const customer = v('b-customer');
@@ -707,73 +707,103 @@ async function doSubmitBalance() {
 
   // ตรวจสอบข้อมูลเบื้องต้น
   if (!quoteNo || !amount || !date) { 
-    toast('⚠️ กรุณากรอกข้อมูลให้ครบ','err'); 
+    toast('⚠️ กรุณากรอกข้อมูลให้ครบ', 'err'); 
     return; 
   }
   if (+amount <= 0) { 
-    toast('⚠️ จำนวนเงินต้องมากกว่า 0','err'); 
+    toast('⚠️ จำนวนเงินต้องมากกว่า 0', 'err'); 
     return; 
   }
 
   setBtnLoad('b-btn', true, 'กำลังบันทึก...');
 
   try {
-    const slip = buildSlipPayload('b');
+    // 1. ดึงข้อมูลสลิปที่ Verify ไว้ (ดึงมาหมดแม้สถานะจะ Failed หรือสลิปซ้ำ)
+    const r = slipData['b'] || {};
+    const d = r.slipData || {};
     const fileObj = slipFile['b'];
 
-    let filePayload = null;
+    let proofFileBase64 = '';
+    let proofFileName = '';
+
+    // 2. แปลงไฟล์รูปภาพเป็น Base64 แบบเต็ม (เอา data:image/jpeg;base64,... ไปด้วยแบบตัวแรก)
     if (fileObj) {
-      // 1. อ่านไฟล์เป็น Base64
-      const base64Data = await new Promise((resolve, reject) => {
+      proofFileName = fileObj.name;
+      proofFileBase64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
         reader.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์รูปภาพได้"));
         reader.readAsDataURL(fileObj);
       });
-      
-      // 2. หั่นเอาเฉพาะเนื้อ Base64 เพียวๆ (ตัด data:image/jpeg;base64, ออก)
-      const pureBase64 = base64Data.split(',')[1];
-
-      // 3. จัดโครงสร้างให้ตรงกับที่ LiffPayment.gs คาดหวังเป๊ะๆ
-      filePayload = {
-        name: fileObj.name,
-        mimeType: fileObj.type,
-        data: pureBase64  // LiffPayment.gs เช็คตัวแปร data.file.data
-      };
     }
 
-    // ประกอบ Payload
-    const payload = { 
-      action: 'saveBalance', 
-      lineUserId: (typeof lineUserId !== 'undefined' ? lineUserId : ''), 
+    // 🌟 3. จัด Payload ให้เหมือน `submitBalanceReceipt` เป๊ะๆ
+    const payload = {
+      action: 'saveBalance', // เผื่อหลังบ้านดึงไปเช็ค
+      quoteNo: quoteNo,
+      customerName: customer,
+      pack: '', // ฝั่ง LIFF อาจไม่ได้กรอก เว้นว่างไว้
+      head: '',
+      depositPaid: 0,
+      balanceBefore: 0,
+      receivedAmount: parseFloat(amount),
+      receiveDate: date,
+      paymentMethod: 'โอนเงิน', // Default
+      bankName: d.sendingBank || '',
+      chequeNo: '',
+      note: note,
+      
+      // ✅ นำข้อมูล SlipOK ไปใส่ให้ครบ (ทำให้ระบบยอมรับสลิปซ้ำได้เหมือนตัวเดิม)
+      qrDetected: r.qrcodeData ? true : false,
+      slipOkVerified: r.verifyStatus === 'VERIFIED',
+      slipOkStatus: r.verifyStatus || '',
+      slipOkCode: r.verifyCode || '',
+      slipOkMessage: r.verifyMessage || '',
+      slipAmount: d.amount || r.depositAmount || '',
+      slipDate: d.transDate || r.depositDate || '',
+
+      senderName: d.sender?.displayName || d.sender?.name || '',
+      senderAccount: d.sender?.account?.value || '',
+      receiverName: d.receiver?.displayName || d.receiver?.name || '',
+      receiverAccount: d.receiver?.account?.value || '',
+
+      // ส่งชื่อผู้ทำรายการและ Line ID (ถ้ามี)
       adminName: (typeof adminName !== 'undefined' ? adminName : ''),
-      quoteNo: quoteNo, 
-      customer: customer, 
-      amount: +amount, 
-      date: date, 
-      note: note, 
-      slip: slip, 
-      file: filePayload // ส่ง Object ที่แปลงแล้วไป
+      lineUserId: (typeof lineUserId !== 'undefined' ? lineUserId : ''),
+
+      // แนบไฟล์รูปภาพ
+      proofFileBase64: proofFileBase64,
+      proofFileName: proofFileName
     };
 
-    // ส่งข้อมูลไปที่ Apps Script Backend
-    const res = await api(payload);
-                                  
-    if (res && res.status === 'success') {
-      toast('✅ บันทึกยอดคงเหลือ + แจ้ง LINE แล้ว', 'ok');
-      resetForm('b');
-      if (typeof loadRecent === 'function') await loadRecent();
-    } else { 
-      toast('❌ ' + (res?.message || 'บันทึกไม่สำเร็จ'), 'err'); 
+    // 🌟 4. เรียกใช้ฟังก์ชันเซฟตัวที่ทำงานได้ (saveBalanceReceipt) แบบ Async
+    const res = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .saveBalanceReceipt(payload); // <--- วิ่งเข้าฟังก์ชันเดิมเป๊ะ!
+    });
+
+    // 5. แจ้งเตือนยอดไม่ตรง (ถ้ามี Warning จาก Backend)
+    if (res && res.warning && res.warningMessage) {
+      alert(res.warningMessage);
     }
+
+    // 6. เคลียร์ฟอร์มและโหลดข้อมูลใหม่
+    toast('✅ ' + (res?.message || 'บันทึกสำเร็จ'), 'ok');
+    resetForm('b');
+    
+    if (typeof loadRecent === 'function') await loadRecent();
+    if (typeof loadBalanceTableData === 'function') loadBalanceTableData();
+
   } catch(e) { 
     console.error("Submit Error:", e);
-    toast('❌ ' + e.message, 'err'); 
+    toast('❌ บันทึกผิดพลาด: ' + (e.message || e), 'err'); 
   } finally {
-    setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
+    setBtnLoad('b-btn', false, '✅ บันทึกยอดคงเหลือ');
   }
 }
-  
+
 /* ─── Load Recent ─── */
 async function loadRecent() {
   try {
