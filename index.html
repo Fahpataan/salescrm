@@ -271,7 +271,7 @@
           <div class="slip-ico">🧾</div>
           <div class="slip-txt">แตะเพื่อเลือกรูปสลิป / ถ่ายรูป</div>
         </div>
-        <input type="file" accept="image/*" id="slip-file-d" />
+        <input type="file" accept="image/*" id="slip-file-d" onchange="onSlipSelected('d')" />
       </div>
       <button class="btn-verify" id="d-verify-btn" onclick="doVerifySlip('d')" disabled>
         <span>🔄</span> ตรวจสลิปใหม่อีกครั้ง
@@ -342,7 +342,7 @@
           <div class="slip-ico">🧾</div>
           <div class="slip-txt">แตะเพื่อเลือกรูปสลิป / ถ่ายรูป</div>
         </div>
-        <input type="file" accept="image/*" id="slip-file-b" />
+        <input type="file" accept="image/*" id="slip-file-b" onchange="onSlipSelected('b')" />
       </div>
       <button class="btn-verify" id="b-verify-btn" onclick="doVerifySlip('b')" disabled>
         <span>🔄</span> ตรวจสลิปใหม่อีกครั้ง
@@ -649,17 +649,10 @@ async function doVerifySlip(p) {
         toast('⏳ สลิปอยู่ระหว่างตรวจสอบ (DELAY)', '');
 
       } else {
-  showVerifyBox(p, 'fail', '❌', `FAILED [${r.verifyCode}] — ` + r.verifyMessage);
-
-  // ✅ ถ้าเป็นสลิปซ้ำ 1012 ให้เติมยอด/วันที่ได้ (เพราะมีข้อมูลมา)
-  if (String(r.verifyCode) === '1012') {
-    if (r.depositAmount > 0)  document.getElementById(p + '-amount').value = r.depositAmount;
-    if (r.depositDate)        document.getElementById(p + '-date').value   = r.depositDate;
-    toast('⚠️ สลิปซ้ำ (1012) แต่ยังบันทึกได้', 'err');
-  } else {
-    toast('⚠️ สลิปตรวจไม่ผ่าน: ' + r.verifyMessage, 'err');
-  }
-}
+        showVerifyBox(p, 'fail', '❌', `FAILED [${r.verifyCode}] — ` + r.verifyMessage);
+        toast('⚠️ สลิปตรวจไม่ผ่าน: ' + r.verifyMessage, 'err');
+      }
+    }
   } catch(e) { toast('❌ เกิดข้อผิดพลาด: ' + e.message, 'err'); }
 
   btn.disabled = false;
@@ -747,7 +740,7 @@ function doSubmitBalance() {
     note: note,
 
     // ✅ เพิ่มจาก SlipOK (ให้เหมือน submitBalanceReceipt)
-    qrDetected: (String(r.verifyCode || '') === '1012') ? false : !!r.qrcodeData,
+    qrDetected: !!r.qrcodeData,
     slipOkVerified: (r.verifyStatus === 'VERIFIED') || (r.verified === true),
     slipOkStatus: r.verifyStatus || '',
     slipOkCode: r.verifyCode || '',
@@ -909,53 +902,6 @@ function toast(msg, type) {
 }
 
 init();
-
-// ✅ Bind input file ให้เรียก handler ชุดเดียว (เหมือนหน้าเว็บ ไม่ใช้ inline onchange)
-document.addEventListener('DOMContentLoaded', () => {
-  const dInp = document.getElementById('slip-file-d');
-  const bInp = document.getElementById('slip-file-b');
-
-  if (dInp) dInp.addEventListener('change', () => sharedSlipSelected('d'));
-  if (bInp) bInp.addEventListener('change', () => sharedSlipSelected('b'));
-});
-
-// ✅ Handler กลาง (แทน onSlipSelected เดิม) — flow เดียวกับหน้าเว็บ: preview → detectQR → verify
-function sharedSlipSelected(p) {
-  const file = document.getElementById('slip-file-' + p).files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = async function (e) {
-    const dataUrl = e.target.result;
-    const base64  = String(dataUrl).split(',')[1] || '';
-
-    // เก็บไฟล์แบบเดิม
-    slipFile[p] = { data: base64, mimeType: file.type, name: file.name };
-
-    // Preview (เหมือนเดิม)
-    const preview = document.getElementById('slip-preview-' + p);
-    preview.src = dataUrl;
-    preview.style.display = 'block';
-    document.getElementById('slip-placeholder-' + p).style.display = 'none';
-    document.getElementById('slip-zone-' + p).classList.add('has-img');
-
-    slipData[p] = null;
-    document.getElementById(p + '-verify-btn').disabled = true;
-    showVerifyBox(p, 'skip', '🔍', 'กำลังตรวจหา QR code…');
-
-    // ตรวจ QR
-    const qrData = await detectQRCode(dataUrl);
-
-    if (qrData) {
-      showVerifyBox(p, 'skip', '⏳', 'พบ QR code — กำลังส่งตรวจ SlipOK…');
-      doVerifySlip(p);
-    } else {
-      showVerifyBox(p, 'skip', '📝', 'ไม่พบ QR code — กรุณากรอกยอดและวันที่เอง');
-      document.getElementById(p + '-verify-btn').disabled = false;
-    }
-  };
-  reader.readAsDataURL(file);
-}
 </script>
 </body>
 </html>
