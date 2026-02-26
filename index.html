@@ -697,14 +697,14 @@ async function doSubmitDeposit() {
   setBtnLoad('d-btn', false, '✅ บันทึก + ส่ง LINE');
 }
 
-/* ─── Submit Balance (ทำงานเหมือนหน้าเว็บหลัก 100% - ไม่มี async/await) ─── */
+/* ─── Submit Balance (ให้ทำงานเหมือน submitBalanceReceipt 100%) ─── */
 function doSubmitBalance() {
   // 1) ดึงค่าจากฟอร์ม LIFF
   var quoteNo = (document.getElementById('b-quote') ? document.getElementById('b-quote').value : '').trim();
   if (!quoteNo) { toast('⚠️ กรุณาระบุเลขที่ใบเสนอราคา', 'err'); return; }
 
   var amountRaw = document.getElementById('b-amount') ? document.getElementById('b-amount').value : '0';
-  var received = parseFloat(amountRaw.replace(/,/g, ''));
+  var received = parseFloat(String(amountRaw).replace(/,/g, ''));
   if (!received || received <= 0) { toast('⚠️ จำนวนเงินต้องมากกว่า 0', 'err'); return; }
 
   var receiveDate = document.getElementById('b-date') ? document.getElementById('b-date').value : '';
@@ -713,87 +713,85 @@ function doSubmitBalance() {
   var customer = document.getElementById('b-customer') ? document.getElementById('b-customer').value : '';
   var note = document.getElementById('b-note') ? document.getElementById('b-note').value : '';
 
-  // ดึงข้อมูลสลิปที่ Verify ไว้
+  // 2) ดึงข้อมูลสลิปที่ Verify ไว้ (SlipOK)
   var r = slipData['b'] || {};
   var d = r.slipData || {};
-  var fileObj = slipFile['b'];
 
-  // 2) เตรียม Payload ให้เหมือนหน้าเว็บหลัก 100%
+  // slipFile['b'] ในไฟล์นี้เป็น base64 object: { data, mimeType, name }
+  var fileObj = slipFile['b'] || null;
+
+  // 3) เตรียม Payload ให้ “หน้าตาเหมือน” submitBalanceReceipt()
+  //    (ฝั่งหลังบ้าน saveBalanceReceipt จะอ่าน field ชุดนี้)
   var formData = {
-    action: 'saveBalance',
     quoteNo: quoteNo,
     customerName: customer,
-    pack: '', 
+    pack: '',                // ฝั่งหลังบ้านสามารถเติมเองได้ ถ้ามี getBalanceInfo
     head: '',
     depositPaid: 0,
     balanceBefore: 0,
+
     receivedAmount: received,
     receiveDate: receiveDate,
-    paymentMethod: 'โอน', // กำหนดเป็นโอน เพื่อให้ระบบหลักรวมชื่อแบงก์
-    bankName: d.sendingBank || '', 
+
+    // LIFF หน้านี้ไม่มีตัวเลือกช่องทาง → ให้เหมือนเดิมที่คุณตั้งไว้ (โอน)
+    paymentMethod: 'โอน',
+    bankName: d.sendingBank || '',
     chequeNo: '',
     note: note,
-    
-    // ข้อมูล SlipOK 
-    qrDetected: r.qrcodeData ? true : false,
-    slipOkVerified: r.verifyStatus === 'VERIFIED',
+
+    // ✅ เพิ่มจาก SlipOK (ให้เหมือน submitBalanceReceipt)
+    qrDetected: !!r.qrcodeData,
+    slipOkVerified: (r.verifyStatus === 'VERIFIED') || (r.verified === true),
     slipOkStatus: r.verifyStatus || '',
     slipOkCode: r.verifyCode || '',
     slipOkMessage: r.verifyMessage || '',
     slipAmount: d.amount || r.depositAmount || '',
     slipDate: d.transDate || r.depositDate || '',
 
-    // ข้อมูลบัญชี 
+    // ข้อมูลบัญชี
     senderName: (d.sender && (d.sender.displayName || d.sender.name)) || '',
-    senderAccount: (d.sender && d.sender.account && d.sender.account.value) || '',
+    senderAccount: (d.sender && d.sender.account && (d.sender.account.value || d.sender.accountValue)) || '',
     receiverName: (d.receiver && (d.receiver.displayName || d.receiver.name)) || '',
-    receiverAccount: (d.receiver && d.receiver.account && d.receiver.account.value) || '',
+    receiverAccount: (d.receiver && d.receiver.account && (d.receiver.account.value || d.receiver.accountValue)) || '',
 
+    // ผู้บันทึก
     adminName: (typeof adminName !== 'undefined' ? adminName : ''),
     lineUserId: (typeof lineUserId !== 'undefined' ? lineUserId : '')
   };
 
-  // 3) UI Loading
+  // 4) แนบไฟล์หลักฐาน “แบบเดียวกับหน้าเว็บหลัก” (dataURL + fileName)
+  //    ✅ ไม่ใช้ FileReader แล้ว (เพราะ fileObj ไม่ใช่ File/Blob)
+  if (fileObj && fileObj.data) {
+    var mime = fileObj.mimeType || 'image/jpeg';
+    formData.proofFileBase64 = 'data:' + mime + ';base64,' + fileObj.data;
+    formData.proofFileName = fileObj.name || 'BalanceSlip';
+  }
+
+  // 5) UI Loading
   setBtnLoad('b-btn', true, 'กำลังบันทึก...');
 
-  // 4) ฟังก์ชันวิ่งเข้า saveBalanceReceipt แบบดั้งเดิม (เหมือน submitBalanceReceipt เป๊ะ)
-  var runSave = function(payload) {
-    google.script.run
-      .withSuccessHandler(function(res) {
-        setBtnLoad('b-btn', false, '✅ บันทึกยอดคงเหลือ');
+  // 6) เรียกหลังบ้าน “เหมือน submitBalanceReceipt”
+  google.script.run
+    .withSuccessHandler(function(res) {
+      setBtnLoad('b-btn', false, '✅ บันทึกยอดคงเหลือ');
 
-        // ถ้ายอดไม่ตรง ให้เตือนเหมือนเดิม แต่ไม่บล็อก
-        if (res && res.warning && res.warningMessage) {
-          alert(res.warningMessage);
-        }
+      // ถ้ายอดไม่ตรง ให้เตือนเหมือนเดิม แต่ไม่บล็อก
+      if (res && res.warning && res.warningMessage) {
+        alert(res.warningMessage);
+      }
 
-        // แจ้งว่าบันทึกสำเร็จ
-        toast('✅ ' + (res && res.message ? res.message : 'บันทึกสำเร็จ'), 'ok');
-        
-        // ล้างฟอร์ม
-        resetForm('b');
-        if (typeof loadRecent === 'function') loadRecent();
-      })
-      .withFailureHandler(function(err) {
-        setBtnLoad('b-btn', false, '✅ บันทึกยอดคงเหลือ');
-        var msg = (err && err.message) ? err.message : String(err || '');
-        toast('❌ บันทึกผิดพลาด: ' + msg, 'err');
-      })
-      .saveBalanceReceipt(payload); // <--- วิ่งเข้าฟังก์ชันเป้าหมาย 100%
-  };
+      toast('✅ ' + (res && res.message ? res.message : 'บันทึกสำเร็จ'), 'ok');
 
-  // 5) เช็คไฟล์แนบ (ถ้ามี) แล้วอ่านด้วย FileReader แบบเดิมเป๊ะๆ
-  if (fileObj) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      formData.proofFileBase64 = e.target.result;
-      formData.proofFileName = fileObj.name;
-      runSave(formData); // โหลดไฟล์เสร็จค่อยส่ง
-    };
-    reader.readAsDataURL(fileObj);
-  } else {
-    runSave(formData); // ไม่มีไฟล์ก็ส่งเลย
-  }
+      // ล้างฟอร์ม + โหลดรายการล่าสุด
+      resetForm('b');
+      if (typeof loadRecent === 'function') loadRecent();
+    })
+    .withFailureHandler(function(err) {
+      setBtnLoad('b-btn', false, '✅ บันทึกยอดคงเหลือ');
+      var msg = (err && err.message) ? err.message : String(err || '');
+      toast('❌ บันทึกผิดพลาด: ' + msg, 'err');
+    })
+    .saveBalanceReceipt(formData);
 }
   
 /* ─── Load Recent ─── */
