@@ -697,7 +697,7 @@ async function doSubmitDeposit() {
   setBtnLoad('d-btn', false, '✅ บันทึก + ส่ง LINE');
 }
 
-/* ─── Submit Balance (LIFF Version - 100% Correct) ─── */
+/* ─── Submit Balance (LIFF Version - Fixed Backend Match) ─── */
 async function doSubmitBalance() {
   const quoteNo  = v('b-quote');
   const customer = v('b-customer');
@@ -719,11 +719,11 @@ async function doSubmitBalance() {
 
   try {
     const slip = buildSlipPayload('b');
-    const fileObj = slipFile['b']; // ดึงไฟล์ที่อัปโหลดไว้
+    const fileObj = slipFile['b'];
 
-    // 🌟 จุดสำคัญ: แปลงไฟล์รูปภาพเป็น Base64 เพื่อให้ Apps Script อ่านได้
     let filePayload = null;
     if (fileObj) {
+      // 1. อ่านไฟล์เป็น Base64
       const base64Data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
@@ -731,15 +731,18 @@ async function doSubmitBalance() {
         reader.readAsDataURL(fileObj);
       });
       
-      // สร้างเป็น Object ที่บรรจุข้อความ Base64 แทนที่จะส่ง File ดิบๆ
+      // 2. หั่นเอาเฉพาะเนื้อ Base64 เพียวๆ (ตัด data:image/jpeg;base64, ออก)
+      const pureBase64 = base64Data.split(',')[1];
+
+      // 3. จัดโครงสร้างให้ตรงกับที่ LiffPayment.gs คาดหวังเป๊ะๆ
       filePayload = {
         name: fileObj.name,
         mimeType: fileObj.type,
-        base64: base64Data 
+        data: pureBase64  // LiffPayment.gs เช็คตัวแปร data.file.data
       };
     }
 
-    // 🌟 ประกอบ Payload โดยใช้ชื่อตัวแปรให้ตรงกับโค้ด LIFF เดิมของคุณ
+    // ประกอบ Payload
     const payload = { 
       action: 'saveBalance', 
       lineUserId: (typeof lineUserId !== 'undefined' ? lineUserId : ''), 
@@ -750,13 +753,12 @@ async function doSubmitBalance() {
       date: date, 
       note: note, 
       slip: slip, 
-      file: filePayload // ส่งไฟล์ที่ถูกแปลงแล้ว
+      file: filePayload // ส่ง Object ที่แปลงแล้วไป
     };
 
     // ส่งข้อมูลไปที่ Apps Script Backend
     const res = await api(payload);
                                   
-    // ตรวจสอบผลลัพธ์
     if (res && res.status === 'success') {
       toast('✅ บันทึกยอดคงเหลือ + แจ้ง LINE แล้ว', 'ok');
       resetForm('b');
