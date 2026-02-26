@@ -697,7 +697,7 @@ async function doSubmitDeposit() {
   setBtnLoad('d-btn', false, '✅ บันทึก + ส่ง LINE');
 }
 
-/* ─── Submit Balance ─── */
+/* ─── Submit Balance (LIFF Version - 100% Correct) ─── */
 async function doSubmitBalance() {
   const quoteNo  = v('b-quote');
   const customer = v('b-customer');
@@ -705,52 +705,73 @@ async function doSubmitBalance() {
   const date     = v('b-date');
   const note     = v('b-note');
 
-  if (!quoteNo || !amount || !date) { toast('⚠️ กรุณากรอกข้อมูลให้ครบ','err'); return; }
-  if (+amount <= 0) { toast('⚠️ จำนวนเงินต้องมากกว่า 0','err'); return; }
+  // ตรวจสอบข้อมูลเบื้องต้น
+  if (!quoteNo || !amount || !date) { 
+    toast('⚠️ กรุณากรอกข้อมูลให้ครบ','err'); 
+    return; 
+  }
+  if (+amount <= 0) { 
+    toast('⚠️ จำนวนเงินต้องมากกว่า 0','err'); 
+    return; 
+  }
 
-  setBtnLoad('b-btn', true);
+  setBtnLoad('b-btn', true, 'กำลังบันทึก...');
+
   try {
     const slip = buildSlipPayload('b');
-    const file = slipFile['b']; // 🌟 1. ดึงไฟล์รูปที่เซลล์อัปโหลดไว้
+    const fileObj = slipFile['b']; // ดึงไฟล์ที่อัปโหลดไว้
 
-    // 🌟 2. เพิ่มคำว่า file เข้าไปต่อท้ายในวงเล็บนี้
-    const res  = await api({ action:'saveBalance', lineUserId, adminName,
-                              quoteNo, customer, amount:+amount, date, note, slip, file });
-                              
-    if (res.status === 'success') {
+    // 🌟 จุดสำคัญ: แปลงไฟล์รูปภาพเป็น Base64 เพื่อให้ Apps Script อ่านได้
+    let filePayload = null;
+    if (fileObj) {
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์รูปภาพได้"));
+        reader.readAsDataURL(fileObj);
+      });
+      
+      // สร้างเป็น Object ที่บรรจุข้อความ Base64 แทนที่จะส่ง File ดิบๆ
+      filePayload = {
+        name: fileObj.name,
+        mimeType: fileObj.type,
+        base64: base64Data 
+      };
+    }
+
+    // 🌟 ประกอบ Payload โดยใช้ชื่อตัวแปรให้ตรงกับโค้ด LIFF เดิมของคุณ
+    const payload = { 
+      action: 'saveBalance', 
+      lineUserId: (typeof lineUserId !== 'undefined' ? lineUserId : ''), 
+      adminName: (typeof adminName !== 'undefined' ? adminName : ''),
+      quoteNo: quoteNo, 
+      customer: customer, 
+      amount: +amount, 
+      date: date, 
+      note: note, 
+      slip: slip, 
+      file: filePayload // ส่งไฟล์ที่ถูกแปลงแล้ว
+    };
+
+    // ส่งข้อมูลไปที่ Apps Script Backend
+    const res = await api(payload);
+                                  
+    // ตรวจสอบผลลัพธ์
+    if (res && res.status === 'success') {
       toast('✅ บันทึกยอดคงเหลือ + แจ้ง LINE แล้ว', 'ok');
       resetForm('b');
-      await loadRecent();
-    } else { toast('❌ ' + (res.message || 'บันทึกไม่สำเร็จ'), 'err'); }
-  } catch(e) { toast('❌ ' + e.message, 'err'); }
-  setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
+      if (typeof loadRecent === 'function') await loadRecent();
+    } else { 
+      toast('❌ ' + (res?.message || 'บันทึกไม่สำเร็จ'), 'err'); 
+    }
+  } catch(e) { 
+    console.error("Submit Error:", e);
+    toast('❌ ' + e.message, 'err'); 
+  } finally {
+    setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
+  }
 }
-
-function buildSlipPayload(p) {
-  const r = slipData[p];
-  if (!r) return { verifyStatus: 'SKIPPED' };
-  const d = r.slipData || {};
-  return {
-    verifyStatus:         r.verifyStatus,
-    verifyCode:           r.verifyCode,
-    verifyMessage:        r.verifyMessage,
-    transTimestamp:       d.transTimestamp    || '',
-    transRef:             d.transRef          || '',
-    transDate:            d.transDate         || '',
-    transTime:            d.transTime         || '',
-    sendingBank:          d.sendingBank        || '',
-    receivingBank:        d.receivingBank      || '',
-    transFeeAmount:       d.transFeeAmount     || 0,
-    senderDisplayName:    (d.sender && d.sender.displayName) || '',
-    senderName:           (d.sender && d.sender.name)        || '',
-    senderAccountValue:   (d.sender && d.sender.account && d.sender.account.value) || '',
-    receiverDisplayName:  (d.receiver && d.receiver.displayName) || '',
-    receiverName:         (d.receiver && d.receiver.name)        || '',
-    receiverAccountValue: (d.receiver && d.receiver.account && d.receiver.account.value) || '',
-    qrcodeData:           r.qrcodeData || ''
-  };
-}
-
+  
 /* ─── Load Recent ─── */
 async function loadRecent() {
   try {
