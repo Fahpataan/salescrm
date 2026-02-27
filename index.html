@@ -902,40 +902,74 @@ function balFillSlipPartyFields_(res) {
 }
 
 /* 8d. Auto-select "โอน" + เลือกธนาคาร */
-function balAutoSelectTransferAndBank_(res) {
-  // ติ๊ก "โอน"
+function balAutoSelectTransferAndBank_(slipRes) {
+  if (!slipRes) return;
+
+  // ถือว่า "ได้ค่าจาก SlipOK" ถ้ามี amount หรือมี slipData บางอย่าง
+  const hasSlipData =
+    (Number(slipRes.depositAmount || 0) > 0) ||
+    !!slipRes.slipData;
+  if (!hasSlipData) return;
+
+  // ====== 1) ติ๊ก "โอน" ด้วย ID ที่รู้แน่นอนของ LIFF ======
   const radioTransfer = document.getElementById('b-pay-transfer');
-  if (radioTransfer) { radioTransfer.checked = true; balToggleBankGroup_(); }
+  if (radioTransfer) {
+    radioTransfer.checked = true;
+    radioTransfer.dispatchEvent(new Event('change', { bubbles: true }));
+    if (typeof balToggleBankGroup_ === 'function') balToggleBankGroup_();
+  }
 
-  // เลือกธนาคาร
-  const bankSel = document.getElementById('b-bank');
-  if (!bankSel || !res) return;
-  const d = res.slipData || res.data || {};
-  const bankRaw = String(d.sendingBank || res.sendingBank || '').trim();
-  if (!bankRaw) return;
+  // ====== 2) ดึง bankCode จากหลาย path + pad 3 หลัก ======
+  const sd = slipRes.slipData || {};
+  let bankCode =
+    sd.sendingBank ||
+    (sd.sender && (sd.sender.bank || sd.sender.bankCode)) ||
+    '';
+  bankCode = String(bankCode || '').trim();
 
-  // หา option ที่ชื่อ "ครอบคลุม" ชื่อธนาคารจาก SlipOK
-  const BANK_MAP = {
-    'กสิกรไทย':'กสิกรไทย','kbank':'กสิกรไทย',
-    'ไทยพาณิชย์':'ไทยพาณิชย์','scb':'ไทยพาณิชย์',
-    'กรุงเทพ':'กรุงเทพ','bbl':'กรุงเทพ',
-    'กรุงไทย':'กรุงไทย','ktb':'กรุงไทย',
-    'กรุงศรีอยุธยา':'กรุงศรีอยุธยา','bay':'กรุงศรีอยุธยา','กรุงศรี':'กรุงศรีอยุธยา',
-    'ทหารไทยธนชาต':'ทหารไทยธนชาต','ttb':'ทหารไทยธนชาต','ทหารไทย':'ทหารไทยธนชาต','ธนชาต':'ทหารไทยธนชาต',
-    'ออมสิน':'ออมสิน','gsb':'ออมสิน',
-    'ธ.ก.ส.':'ธ.ก.ส.','baac':'ธ.ก.ส.',
-    'พร้อมเพย์':'พร้อมเพย์','promptpay':'พร้อมเพย์'
+  // ถ้าเป็นตัวเลข เช่น 14 ให้ pad เป็น 014
+  if (bankCode && /^\d+$/.test(bankCode)) bankCode = bankCode.padStart(3, '0');
+
+  // ====== 3) map รหัสธนาคาร -> ข้อความใน dropdown ======
+  const bankNameMapTH = {
+    '004': 'กสิกรไทย',
+    '014': 'ไทยพาณิชย์',
+    '002': 'กรุงเทพ',
+    '006': 'กรุงไทย',
+    '025': 'กรุงศรีอยุธยา',
+    '011': 'ทีเอ็มบีธนชาต',
+    '030': 'ออมสิน',
+    '034': 'UOB',
+    '022': 'CIMB',
+    '032': 'ธ.ก.ส.',
+    '065': 'เกียรตินาคินภัทร',
+    '073': 'LH Bank',
+    '070': 'ไอซีบีซี',
+    '071': 'สแตนดาร์ดชาร์เตอร์ด',
+    '067': 'ทิสโก้',
+    '024': 'ซิตี้แบงก์',
+    '066': 'ไทยเครดิต'
   };
-  const key = bankRaw.toLowerCase().replace(/\s/g,'');
-  let mapped = '';
-  for (const k in BANK_MAP) {
-    if (key.includes(k)) { mapped = BANK_MAP[k]; break; }
+  const wantText = bankNameMapTH[bankCode] || '';
+
+  // ====== 4) เลือกธนาคารใน dropdown b-bank ======
+  function setBank() {
+    const bankEl = document.getElementById('b-bank');
+    if (!bankEl || !wantText) return;
+    // ถ้ามีค่าเลือกอยู่แล้วไม่ทับ
+    if (String(bankEl.value || '').trim()) return;
+    const opt = Array.from(bankEl.options).find(o =>
+      String(o.textContent || '').trim().includes(wantText)
+    );
+    if (opt) {
+      bankEl.value = opt.value;
+      bankEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
   }
-  if (mapped) {
-    const opts = Array.from(bankSel.options);
-    const found = opts.find(o => o.value === mapped);
-    if (found) bankSel.value = found.value;
-  }
+
+  // set ทันที + set ซ้ำหลัง 80ms เผื่อ handler ไปรีเซ็ต
+  setBank();
+  setTimeout(setBank, 80);
 }
 
 /* 8e. เปรียบเทียบยอดสลิปกับยอดคงเหลือ */
