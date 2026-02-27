@@ -174,6 +174,26 @@
 
     /* ── Results count ── */
     .result-count{font-size:12px;color:var(--muted);margin:-6px 0 10px;padding-left:2px}
+
+    /* ── Payment Method Radio ── */
+    .pay-method-row{display:flex;gap:8px;flex-wrap:wrap}
+    .pay-opt{display:flex;align-items:center;justify-content:center;gap:5px;
+      font-size:13px;font-weight:500;cursor:pointer;flex:1;min-width:70px;
+      padding:9px 8px;border:1.5px solid var(--border);border-radius:9px;
+      transition:all .15s;color:var(--muted)}
+    .pay-opt input[type=radio]{display:none}
+    .pay-opt.selected{border-color:var(--blue);background:#e8f0fb;color:var(--blue-dk);font-weight:700}
+
+    /* ── Compare Message ── */
+    .compare-msg{border-radius:10px;padding:10px 13px;font-size:13px;font-weight:500;
+      margin-bottom:14px;line-height:1.6;display:none}
+    .compare-msg.ok{background:#e7f8ef;color:#00703c;display:block}
+    .compare-msg.over{background:#fff8e1;color:#b45309;display:block}
+    .compare-msg.under{background:#fef2f2;color:#b91c1c;display:block}
+
+    /* ── Locked input ── */
+    .ctrl[readonly]{background:#f0f9ff;color:var(--blue-dk);border-color:#bae6fd}
+
     #loading .logo {
   background: transparent !important; /* ลบสีพื้นหลังเดิมถ้ามี */
   display: flex;
@@ -342,14 +362,50 @@
           <div class="slip-ico">🧾</div>
           <div class="slip-txt">แตะเพื่อเลือกรูปสลิป / ถ่ายรูป</div>
         </div>
-        <input type="file" accept="image/*" id="slip-file-b" onchange="onSlipSelected('b')" />
+        <input type="file" accept="image/*" id="slip-file-b" onchange="onBalSlipSelected_()" />
       </div>
-      <button class="btn-verify" id="b-verify-btn" onclick="doVerifySlip('b')" disabled>
+      <button class="btn-verify" id="b-verify-btn" onclick="balReVerifySlip_()" disabled>
         <span>🔄</span> ตรวจสลิปใหม่อีกครั้ง
       </button>
       <div class="verify-box" id="b-verify-box">
         <span class="v-ico" id="b-v-ico">—</span>
         <span id="b-v-msg">—</span>
+      </div>
+
+      <!-- ช่องทางการจ่าย -->
+      <div class="fg" id="b-pay-method-wrap">
+        <label class="lbl">ช่องทางการจ่าย <span class="req">*</span></label>
+        <div class="pay-method-row" id="b-pay-method-row">
+          <label class="pay-opt selected" id="b-pay-label-transfer">
+            <input type="radio" name="b-pay" value="โอน" id="b-pay-transfer" checked
+                   onchange="balToggleBankGroup_()"> 🏦 โอน
+          </label>
+          <label class="pay-opt" id="b-pay-label-cheque">
+            <input type="radio" name="b-pay" value="เช็ค" id="b-pay-cheque"
+                   onchange="balToggleBankGroup_()"> 📄 เช็ค
+          </label>
+          <label class="pay-opt" id="b-pay-label-cash">
+            <input type="radio" name="b-pay" value="เงินสด" id="b-pay-cash"
+                   onchange="balToggleBankGroup_()"> 💵 เงินสด
+          </label>
+        </div>
+      </div>
+
+      <!-- ธนาคาร (แสดงเมื่อเลือก โอน หรือ เช็ค) -->
+      <div class="fg" id="b-bank-group">
+        <label class="lbl">ธนาคาร</label>
+        <select class="ctrl" id="b-bank">
+          <option value="">— เลือกธนาคาร —</option>
+          <option value="กสิกรไทย">กสิกรไทย (KBank)</option>
+          <option value="ไทยพาณิชย์">ไทยพาณิชย์ (SCB)</option>
+          <option value="กรุงเทพ">กรุงเทพ (BBL)</option>
+          <option value="กรุงไทย">กรุงไทย (KTB)</option>
+          <option value="กรุงศรีอยุธยา">กรุงศรีอยุธยา (BAY)</option>
+          <option value="ทหารไทยธนชาต">ทหารไทยธนชาต (TTB)</option>
+          <option value="ออมสิน">ออมสิน (GSB)</option>
+          <option value="ธ.ก.ส.">ธ.ก.ส. (BAAC)</option>
+          <option value="พร้อมเพย์">พร้อมเพย์</option>
+        </select>
       </div>
 
       <div class="fg">
@@ -364,6 +420,10 @@
         <label class="lbl">วันที่รับเงิน <span class="req">*</span></label>
         <input type="date" class="ctrl" id="b-date" />
       </div>
+
+      <!-- เทียบยอดสลิป vs ยอดคงเหลือ -->
+      <div class="compare-msg" id="b-compare-msg"></div>
+
       <div class="fg">
         <label class="lbl">หมายเหตุ</label>
         <textarea class="ctrl" id="b-note" rows="2" placeholder="บันทึกเพิ่มเติม…"></textarea>
@@ -407,6 +467,11 @@ let lineUserId  = '';
 let adminName   = '';
 let slipData    = { d: null, b: null };   // slip verify result per tab
 let slipFile    = { d: null, b: null };   // base64 file data per tab
+
+/* ── Balance-tab state ── */
+let __balQrDetected    = null;   // null=ยังไม่ตรวจ, true=พบ QR, false=ไม่พบ QR
+let __balSlipPartyData = null;   // { senderName, senderAccount, receiverName, receiverAccount, sendingBank }
+let __balRemainingAmt  = 0;      // ยอดคงเหลือที่ดึงมาจาก quote ที่เลือก
 
 /* ─── Init ─── */
 /* ─── Init (อัปเกรด โหลดเร็วปรี๊ด 0.1 วิ) ─── */
@@ -546,7 +611,7 @@ async function searchQuotes(tab) {
   } catch(e) { cnt.textContent = ''; toast('❌ ค้นหาไม่สำเร็จ','err'); }
 }
 
-/* ─── Quote change → auto-fill customer ─── */
+/* ─── Quote change → auto-fill customer + fetch balance info (b-tab) ─── */
 document.addEventListener('DOMContentLoaded', () => {
   ['d','b'].forEach(p => {
     document.getElementById(p + '-quote').addEventListener('change', function() {
@@ -554,6 +619,26 @@ document.addEventListener('DOMContentLoaded', () => {
       if (opt && opt.text && opt.text.includes(' — ')) {
         const cus = opt.text.split(' — ').slice(1).join(' — ');
         document.getElementById(p + '-customer').value = cus;
+      }
+      // b-tab: ดึงยอดคงเหลือเพื่อใช้เปรียบเทียบกับสลิป
+      if (p === 'b' && this.value) {
+        __balRemainingAmt = 0;
+        balSetCompareMsg_('', false);
+        google.script.run
+          .withSuccessHandler(function(info) {
+            if (info && info.balance != null) {
+              __balRemainingAmt = Number(info.balance) || 0;
+              const el = document.getElementById('b-result-count');
+              if (el && __balRemainingAmt > 0) {
+                el.textContent = '💰 ยอดคงเหลือ: ฿' + fmt(__balRemainingAmt);
+              }
+            }
+          })
+          .withFailureHandler(function() {})
+          .getBalanceInfo(this.value);
+      } else if (p === 'b') {
+        __balRemainingAmt = 0;
+        balSetCompareMsg_('', false);
       }
     });
   });
@@ -668,6 +753,320 @@ function showVerifyBox(p, type, ico, msg) {
   msgEl.textContent = msg;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   BAL* HELPERS — flow สำหรับ tab คงเหลือ (b) โดยเฉพาะ
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1. Reset slip panel (b-tab) */
+function balResetSlipPanel_() {
+  slipData['b'] = null;
+  slipFile['b'] = null;
+  __balQrDetected    = null;
+  __balSlipPartyData = null;
+  const prev = document.getElementById('slip-preview-b');
+  const ph   = document.getElementById('slip-placeholder-b');
+  prev.style.display = 'none';
+  ph.style.display   = 'block';
+  document.getElementById('slip-zone-b').classList.remove('has-img');
+  document.getElementById('slip-file-b').value = '';
+  document.getElementById('b-verify-btn').disabled = true;
+  document.getElementById('b-verify-box').className = 'verify-box';
+}
+
+/* 2a. Lock amount + date (หลัง SlipOK เติมค่าให้) */
+function balLockAmountDate_() {
+  const amt  = document.getElementById('b-amount');
+  const date = document.getElementById('b-date');
+  if (amt)  { amt.readOnly  = true; }
+  if (date) { date.readOnly = true; }
+}
+
+/* 2b. Unlock amount + date (รีเซตหรือกรอกเอง) */
+function balUnlockAmountDate_() {
+  const amt  = document.getElementById('b-amount');
+  const date = document.getElementById('b-date');
+  if (amt)  { amt.readOnly  = false; }
+  if (date) { date.readOnly = false; }
+}
+
+/* 3a. ตั้ง/ซ่อน compare message */
+function balSetCompareMsg_(msg, show) {
+  const el = document.getElementById('b-compare-msg');
+  if (!el) return;
+  if (!show || !msg) { el.className = 'compare-msg'; el.textContent = ''; return; }
+  el.textContent = msg;
+  // ตั้ง class ตามเนื้อหา
+  if (msg.startsWith('✅')) el.className = 'compare-msg ok';
+  else if (msg.includes('เกิน')) el.className = 'compare-msg over';
+  else el.className = 'compare-msg under';
+}
+
+/* 3b. ตั้ง upload/processing msg ผ่าน verify-box */
+function balSetUploadMsg_(type, ico, msg) {
+  showVerifyBox('b', type, ico, msg);
+}
+
+/* 4. Toggle bank group ตาม radio ที่เลือก */
+function balToggleBankGroup_() {
+  const radios = document.querySelectorAll('input[name="b-pay"]');
+  let selected = 'โอน';
+  radios.forEach(r => {
+    const lbl = document.getElementById('b-pay-label-' +
+      (r.value === 'โอน' ? 'transfer' : r.value === 'เช็ค' ? 'cheque' : 'cash'));
+    if (lbl) lbl.classList.toggle('selected', r.checked);
+    if (r.checked) selected = r.value;
+  });
+  const bankGrp = document.getElementById('b-bank-group');
+  if (bankGrp) bankGrp.style.display = (selected === 'โอน' || selected === 'เช็ค') ? '' : 'none';
+}
+
+/* 5. ตรวจ QR ในรูปด้วย jsQR (คืน null = ไม่พบ, string = พบ) */
+function balDetectQrInImage_(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        const qr = await detectQRCode(e.target.result);
+        resolve(qr);
+      } catch(err) { resolve(null); }
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+/* 6. แปลงไฟล์เป็น base64 object */
+function balFileToBase64_(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const b64 = e.target.result.split(',')[1];
+      resolve({ data: b64, mimeType: file.type, name: file.name });
+    };
+    reader.onerror = () => reject(new Error('อ่านไฟล์ไม่ได้'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/* 8a. เก็บข้อมูลผู้โอน/ผู้รับ (ไม่แสดง UI แต่ส่งไปบันทึกลงชีต) */
+function balFillSlipPartyFields_(res) {
+  if (!res) return;
+  const d = res.slipData || res.data || {};
+  __balSlipPartyData = {
+    senderName:     String((d.sender    && (d.sender.displayName    || d.sender.name))    || res.senderName    || '').trim(),
+    senderAccount:  String((d.sender    && d.sender.account && (d.sender.account.value    || d.sender.accountValue)) || res.senderAccount  || '').trim(),
+    receiverName:   String((d.receiver  && (d.receiver.displayName  || d.receiver.name))  || res.receiverName  || '').trim(),
+    receiverAccount:String((d.receiver  && d.receiver.account && (d.receiver.account.value|| d.receiver.accountValue))|| res.receiverAccount|| '').trim(),
+    sendingBank:    String(d.sendingBank || res.sendingBank || '').trim()
+  };
+}
+
+/* 8d. Auto-select "โอน" + เลือกธนาคาร */
+function balAutoSelectTransferAndBank_(res) {
+  // ติ๊ก "โอน"
+  const radioTransfer = document.getElementById('b-pay-transfer');
+  if (radioTransfer) { radioTransfer.checked = true; balToggleBankGroup_(); }
+
+  // เลือกธนาคาร
+  const bankSel = document.getElementById('b-bank');
+  if (!bankSel || !res) return;
+  const d = res.slipData || res.data || {};
+  const bankRaw = String(d.sendingBank || res.sendingBank || '').trim();
+  if (!bankRaw) return;
+
+  // หา option ที่ชื่อ "ครอบคลุม" ชื่อธนาคารจาก SlipOK
+  const BANK_MAP = {
+    'กสิกรไทย':'กสิกรไทย','kbank':'กสิกรไทย',
+    'ไทยพาณิชย์':'ไทยพาณิชย์','scb':'ไทยพาณิชย์',
+    'กรุงเทพ':'กรุงเทพ','bbl':'กรุงเทพ',
+    'กรุงไทย':'กรุงไทย','ktb':'กรุงไทย',
+    'กรุงศรีอยุธยา':'กรุงศรีอยุธยา','bay':'กรุงศรีอยุธยา','กรุงศรี':'กรุงศรีอยุธยา',
+    'ทหารไทยธนชาต':'ทหารไทยธนชาต','ttb':'ทหารไทยธนชาต','ทหารไทย':'ทหารไทยธนชาต','ธนชาต':'ทหารไทยธนชาต',
+    'ออมสิน':'ออมสิน','gsb':'ออมสิน',
+    'ธ.ก.ส.':'ธ.ก.ส.','baac':'ธ.ก.ส.',
+    'พร้อมเพย์':'พร้อมเพย์','promptpay':'พร้อมเพย์'
+  };
+  const key = bankRaw.toLowerCase().replace(/\s/g,'');
+  let mapped = '';
+  for (const k in BANK_MAP) {
+    if (key.includes(k)) { mapped = BANK_MAP[k]; break; }
+  }
+  if (mapped) {
+    const opts = Array.from(bankSel.options);
+    const found = opts.find(o => o.value === mapped);
+    if (found) bankSel.value = found.value;
+  }
+}
+
+/* 8e. เปรียบเทียบยอดสลิปกับยอดคงเหลือ */
+function balCompareSlipAmountToRemaining_(slipAmt) {
+  const remaining = __balRemainingAmt;
+  if (!slipAmt || slipAmt <= 0) { balSetCompareMsg_('', false); return; }
+  if (!remaining || remaining <= 0) { balSetCompareMsg_('', false); return; }
+  const diff = slipAmt - remaining;
+  let msg;
+  if (Math.abs(diff) < 1) {
+    msg = `✅ ยอดสลิป ฿${fmt(slipAmt)} ตรงกับยอดคงเหลือ ฿${fmt(remaining)} พอดี`;
+  } else if (diff > 0) {
+    msg = `⚠️ ยอดสลิป ฿${fmt(slipAmt)} เกินยอดคงเหลือ ฿${fmt(remaining)} (เกิน ฿${fmt(diff)})`;
+  } else {
+    msg = `⚠️ ยอดสลิป ฿${fmt(slipAmt)} น้อยกว่ายอดคงเหลือ ฿${fmt(remaining)} (ขาด ฿${fmt(Math.abs(diff))})`;
+  }
+  balSetCompareMsg_(msg, true);
+}
+
+/* ── Callback: ได้ผลจาก verifySlipOnly กลับมา ── */
+function balOnSlipOkResult_(res) {
+  document.getElementById('b-verify-btn').disabled = false;
+
+  if (!res) {
+    balSetUploadMsg_('fail', '❌', 'ไม่ได้รับผลจาก SlipOK');
+    return;
+  }
+
+  // เก็บผลไว้ใช้ตอน submit
+  slipData['b'] = res;
+
+  // 8a. เติมยอด/วันที่
+  const amount = Number(res.depositAmount || 0);
+  const date   = res.depositDate || '';
+  if (amount > 0) document.getElementById('b-amount').value = amount;
+  if (date)       document.getElementById('b-date').value   = date;
+
+  // 8b. Lock ถ้าเติมได้อย่างน้อย 1 ค่า
+  if (amount > 0 || date) balLockAmountDate_();
+
+  // 8c. เก็บข้อมูล party ไว้ส่งชีต (ไม่โชว์ UI)
+  balFillSlipPartyFields_(res);
+
+  // 8d. แสดงผลตรวจสลิป
+  const status = res.verifyStatus || '';
+  if (res.verified || status === 'VERIFIED') {
+    const bank = (res.slipData && res.slipData.sendingBank) || res.sendingBank || '?';
+    balSetUploadMsg_('ok', '✅', `VERIFIED — ฿${fmt(amount)} (${bank} → รับ)`);
+    toast('✅ ตรวจสลิปสำเร็จ', 'ok');
+  } else if (status === 'DELAY') {
+    balSetUploadMsg_('delay', '⏳', `DELAY (รอ ${res.delayMin || '?'} นาที) — ${res.verifyMessage || ''}`);
+    toast('⏳ สลิปอยู่ระหว่างตรวจสอบ (DELAY)', '');
+  } else if (status === 'SKIPPED') {
+    balSetUploadMsg_('skip', '📝', `ข้ามตรวจ SlipOK — ${res.verifyMessage || res.verifyCode || ''}`);
+  } else {
+    balSetUploadMsg_('fail', '❌', `FAILED [${res.verifyCode || '?'}] — ${res.verifyMessage || ''}`);
+    toast('⚠️ สลิปตรวจไม่ผ่าน: ' + (res.verifyMessage || ''), 'err');
+  }
+
+  // 8e. Auto-select โอน + ธนาคาร
+  balAutoSelectTransferAndBank_(res);
+
+  // 8f. เปรียบเทียบยอดกับยอดคงเหลือ
+  balCompareSlipAmountToRemaining_(amount);
+}
+
+/* ── ตรวจสลิปใหม่อีกครั้ง (b-verify-btn) ── */
+function balReVerifySlip_() {
+  if (!slipFile['b']) { toast('⚠️ กรุณาเลือกรูปสลิปก่อน','err'); return; }
+  const btn = document.getElementById('b-verify-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div>';
+  balSetUploadMsg_('skip', '⏳', 'กำลังส่งตรวจ SlipOK ใหม่…');
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.innerHTML = '<span>🔄</span> ตรวจสลิปใหม่อีกครั้ง';
+      balOnSlipOkResult_(res);
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔄</span> ตรวจสลิปใหม่อีกครั้ง';
+      balSetUploadMsg_('fail', '❌', 'ตรวจสลิปผิดพลาด: ' + (err && err.message ? err.message : String(err)));
+    })
+    .verifySlipOnly({ file: slipFile['b'] });
+}
+
+/* ════ MAIN: New Balance slip-selected flow ════ */
+async function onBalSlipSelected_() {
+  const file = document.getElementById('slip-file-b').files[0];
+  if (!file) return;
+
+  /* ① Reset slip panel */
+  balResetSlipPanel_();
+
+  /* ② Unlock amount/date เพื่อรอกรอกเอง */
+  balUnlockAmountDate_();
+
+  /* ③ Reset compare msg + แสดง "กำลังประมวลผล" */
+  balSetCompareMsg_('', false);
+  balSetUploadMsg_('skip', '⏳', 'กำลังประมวลผลรูป…');
+
+  // แสดง preview ก่อน
+  const previewDataUrl = await new Promise(resolve => {
+    const r = new FileReader();
+    r.onload = e => resolve(e.target.result);
+    r.onerror = () => resolve(null);
+    r.readAsDataURL(file);
+  });
+  if (previewDataUrl) {
+    const prev = document.getElementById('slip-preview-b');
+    prev.src = previewDataUrl;
+    prev.style.display = 'block';
+    document.getElementById('slip-placeholder-b').style.display = 'none';
+    document.getElementById('slip-zone-b').classList.add('has-img');
+  }
+
+  /* ④ ตรวจชนิดไฟล์ */
+  const mime = (file.type || '').toLowerCase();
+  const isImage = mime === 'image/png' || mime === 'image/jpeg' || mime === 'image/jpg';
+  if (!isImage) {
+    __balQrDetected = false;
+    balSetUploadMsg_('skip', '📄', 'ไฟล์ไม่ใช่รูป PNG/JPG — กรุณากรอกยอดและวันที่เอง');
+    document.getElementById('b-verify-btn').disabled = false;
+    return;
+  }
+
+  /* ⑤ ตรวจ QR ในรูป */
+  balSetUploadMsg_('skip', '🔍', 'กำลังตรวจหา QR code…');
+  let qrData = null;
+  let qrError = false;
+  try {
+    qrData = await balDetectQrInImage_(file);
+  } catch(e) {
+    qrError = true; // ไม่แน่ใจ → ส่งตรวจต่อ
+  }
+
+  if (!qrError && qrData === null) {
+    // ไม่พบ QR → ข้าม SlipOK
+    __balQrDetected = false;
+    balSetUploadMsg_('skip', '📝', 'ไม่พบ QR code — กรุณากรอกยอดและวันที่เอง');
+    document.getElementById('b-verify-btn').disabled = false;
+    return;
+  }
+
+  // พบ QR หรือไม่แน่ใจ → ส่งตรวจ SlipOK
+  __balQrDetected = (qrData !== null);
+  balSetUploadMsg_('skip', '⏳', 'พบ QR code — กำลังแปลงรูปและส่งตรวจ SlipOK…');
+
+  /* ⑥ แปลงเป็น base64 */
+  let fileObj;
+  try {
+    fileObj = await balFileToBase64_(file);
+  } catch(e) {
+    balSetUploadMsg_('fail', '❌', 'อ่านไฟล์ไม่ได้: ' + e.message);
+    return;
+  }
+  slipFile['b'] = fileObj;
+
+  /* ⑦ ส่งตรวจ SlipOK ที่ GAS ผ่าน google.script.run */
+  balSetUploadMsg_('skip', '⏳', 'กำลังตรวจสลิปกับ SlipOK…');
+  google.script.run
+    .withSuccessHandler(function(res) {
+      balOnSlipOkResult_(res);
+    })
+    .withFailureHandler(function(err) {
+      balSetUploadMsg_('fail', '❌', 'ตรวจสลิปผิดพลาด: ' + (err && err.message ? err.message : String(err)));
+      document.getElementById('b-verify-btn').disabled = false;
+    })
+    .verifySlipOnly({ file: fileObj });
+}
+
 /* ─── Submit Deposit ─── */
 async function doSubmitDeposit() {
   const quoteNo  = v('d-quote');
@@ -697,14 +1096,14 @@ async function doSubmitDeposit() {
   setBtnLoad('d-btn', false, '✅ บันทึก + ส่ง LINE');
 }
 
-/* ─── Submit Balance (ทำงานเหมือนหน้าเว็บหลัก 100% - ไม่มี async/await) ─── */
+/* ─── Submit Balance ─── */
 function doSubmitBalance() {
-  // 1) ดึงค่าจากฟอร์ม LIFF
+  // 1) ดึงค่าจากฟอร์ม
   var quoteNo = (document.getElementById('b-quote') ? document.getElementById('b-quote').value : '').trim();
   if (!quoteNo) { toast('⚠️ กรุณาระบุเลขที่ใบเสนอราคา', 'err'); return; }
 
   var amountRaw = document.getElementById('b-amount') ? document.getElementById('b-amount').value : '0';
-  var received = parseFloat(amountRaw.replace(/,/g, ''));
+  var received = parseFloat(String(amountRaw).replace(/,/g, ''));
   if (!received || received <= 0) { toast('⚠️ จำนวนเงินต้องมากกว่า 0', 'err'); return; }
 
   var receiveDate = document.getElementById('b-date') ? document.getElementById('b-date').value : '';
@@ -713,87 +1112,80 @@ function doSubmitBalance() {
   var customer = document.getElementById('b-customer') ? document.getElementById('b-customer').value : '';
   var note = document.getElementById('b-note') ? document.getElementById('b-note').value : '';
 
-  // ดึงข้อมูลสลิปที่ Verify ไว้
+  // 2) ช่องทางการจ่าย + ธนาคาร (จาก UI ใหม่)
+  var paymentMethod = 'โอน';
+  var radios = document.querySelectorAll('input[name=”b-pay”]');
+  radios.forEach(function(r) { if (r.checked) paymentMethod = r.value; });
+  var bankName = (document.getElementById('b-bank') ? document.getElementById('b-bank').value : '') || '';
+
+  // 3) ดึงข้อมูลสลิป SlipOK
   var r = slipData['b'] || {};
   var d = r.slipData || {};
-  var fileObj = slipFile['b'];
 
-  // 2) เตรียม Payload ให้เหมือนหน้าเว็บหลัก 100%
+  // 4) ข้อมูล party จาก __balSlipPartyData (เก็บโดย balFillSlipPartyFields_)
+  var party = __balSlipPartyData || {};
+
+  // slipFile['b'] เป็น base64 object: { data, mimeType, name }
+  var fileObj = slipFile['b'] || null;
+
+  // 5) เตรียม Payload (หน้าตาเหมือน submitBalanceReceipt ฝั่งหน้าเว็บหลัก)
   var formData = {
-    action: 'saveBalance',
-    quoteNo: quoteNo,
+    quoteNo:      quoteNo,
     customerName: customer,
-    pack: '', 
-    head: '',
-    depositPaid: 0,
-    balanceBefore: 0,
+    pack: '', head: '',
+    depositPaid: 0, balanceBefore: 0,
+
     receivedAmount: received,
-    receiveDate: receiveDate,
-    paymentMethod: 'โอน', // กำหนดเป็นโอน เพื่อให้ระบบหลักรวมชื่อแบงก์
-    bankName: d.sendingBank || '', 
-    chequeNo: '',
-    note: note,
-    
-    // ข้อมูล SlipOK 
-    qrDetected: r.qrcodeData ? true : false,
-    slipOkVerified: r.verifyStatus === 'VERIFIED',
-    slipOkStatus: r.verifyStatus || '',
-    slipOkCode: r.verifyCode || '',
+    receiveDate:    receiveDate,
+    paymentMethod:  paymentMethod,
+    bankName:       bankName || party.sendingBank || d.sendingBank || '',
+    chequeNo:       '',
+    note:           note,
+
+    // SlipOK result
+    qrDetected:    (__balQrDetected === null) ? (!!r.qrcodeData) : __balQrDetected,
+    slipOkVerified:(r.verifyStatus === 'VERIFIED') || (r.verified === true),
+    slipOkStatus:  r.verifyStatus  || '',
+    slipOkCode:    r.verifyCode    || '',
     slipOkMessage: r.verifyMessage || '',
-    slipAmount: d.amount || r.depositAmount || '',
-    slipDate: d.transDate || r.depositDate || '',
+    slipAmount:    d.amount  || r.depositAmount || '',
+    slipDate:      d.transDate || r.depositDate || '',
 
-    // ข้อมูลบัญชี 
-    senderName: (d.sender && (d.sender.displayName || d.sender.name)) || '',
-    senderAccount: (d.sender && d.sender.account && d.sender.account.value) || '',
-    receiverName: (d.receiver && (d.receiver.displayName || d.receiver.name)) || '',
-    receiverAccount: (d.receiver && d.receiver.account && d.receiver.account.value) || '',
+    // ข้อมูลผู้โอน/ผู้รับ (จาก __balSlipPartyData)
+    senderName:     party.senderName     || (d.sender   && (d.sender.displayName   || d.sender.name))   || '',
+    senderAccount:  party.senderAccount  || (d.sender   && d.sender.account && (d.sender.account.value   || d.sender.accountValue))   || '',
+    receiverName:   party.receiverName   || (d.receiver && (d.receiver.displayName || d.receiver.name))  || '',
+    receiverAccount:party.receiverAccount|| (d.receiver && d.receiver.account && (d.receiver.account.value|| d.receiver.accountValue)) || '',
 
-    adminName: (typeof adminName !== 'undefined' ? adminName : ''),
+    adminName:  (typeof adminName  !== 'undefined' ? adminName  : ''),
     lineUserId: (typeof lineUserId !== 'undefined' ? lineUserId : '')
   };
 
-  // 3) UI Loading
+  // 6) แนบไฟล์หลักฐาน
+  if (fileObj && fileObj.data) {
+    var mime = fileObj.mimeType || 'image/jpeg';
+    formData.proofFileBase64 = 'data:' + mime + ';base64,' + fileObj.data;
+    formData.proofFileName   = fileObj.name || 'BalanceSlip';
+  }
+
+  // 7) UI Loading
   setBtnLoad('b-btn', true, 'กำลังบันทึก...');
 
-  // 4) ฟังก์ชันวิ่งเข้า saveBalanceReceipt แบบดั้งเดิม (เหมือน submitBalanceReceipt เป๊ะ)
-  var runSave = function(payload) {
-    google.script.run
-      .withSuccessHandler(function(res) {
-        setBtnLoad('b-btn', false, '✅ บันทึกยอดคงเหลือ');
-
-        // ถ้ายอดไม่ตรง ให้เตือนเหมือนเดิม แต่ไม่บล็อก
-        if (res && res.warning && res.warningMessage) {
-          alert(res.warningMessage);
-        }
-
-        // แจ้งว่าบันทึกสำเร็จ
-        toast('✅ ' + (res && res.message ? res.message : 'บันทึกสำเร็จ'), 'ok');
-        
-        // ล้างฟอร์ม
-        resetForm('b');
-        if (typeof loadRecent === 'function') loadRecent();
-      })
-      .withFailureHandler(function(err) {
-        setBtnLoad('b-btn', false, '✅ บันทึกยอดคงเหลือ');
-        var msg = (err && err.message) ? err.message : String(err || '');
-        toast('❌ บันทึกผิดพลาด: ' + msg, 'err');
-      })
-      .saveBalanceReceipt(payload); // <--- วิ่งเข้าฟังก์ชันเป้าหมาย 100%
-  };
-
-  // 5) เช็คไฟล์แนบ (ถ้ามี) แล้วอ่านด้วย FileReader แบบเดิมเป๊ะๆ
-  if (fileObj) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      formData.proofFileBase64 = e.target.result;
-      formData.proofFileName = fileObj.name;
-      runSave(formData); // โหลดไฟล์เสร็จค่อยส่ง
-    };
-    reader.readAsDataURL(fileObj);
-  } else {
-    runSave(formData); // ไม่มีไฟล์ก็ส่งเลย
-  }
+  // 8) เรียกหลังบ้าน
+  google.script.run
+    .withSuccessHandler(function(res) {
+      setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
+      if (res && res.warning && res.warningMessage) { alert(res.warningMessage); }
+      toast('✅ ' + (res && res.message ? res.message : 'บันทึกสำเร็จ'), 'ok');
+      resetForm('b');
+      if (typeof loadRecent === 'function') loadRecent();
+    })
+    .withFailureHandler(function(err) {
+      setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
+      var msg = (err && err.message) ? err.message : String(err || '');
+      toast('❌ บันทึกผิดพลาด: ' + msg, 'err');
+    })
+    .saveBalanceReceipt(formData);
 }
   
 /* ─── Load Recent ─── */
@@ -887,6 +1279,23 @@ function resetForm(p) {
   document.getElementById(p+'-verify-btn').disabled = true;
   document.getElementById(p+'-verify-box').className = 'verify-box';
   document.getElementById(p+'-result-count').textContent = '';
+
+  // balance-tab: reset extra state + UI
+  if (p === 'b') {
+    __balQrDetected    = null;
+    __balSlipPartyData = null;
+    __balRemainingAmt  = 0;
+    // unlock amount/date
+    balUnlockAmountDate_();
+    // reset compare msg
+    balSetCompareMsg_('', false);
+    // reset payment method → โอน (default)
+    const radioTransfer = document.getElementById('b-pay-transfer');
+    if (radioTransfer) { radioTransfer.checked = true; balToggleBankGroup_(); }
+    // reset bank
+    const bankSel = document.getElementById('b-bank');
+    if (bankSel) bankSel.value = '';
+  }
 }
 function setBtnLoad(id, loading, label) {
   const btn = document.getElementById(id);
