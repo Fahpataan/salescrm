@@ -1201,7 +1201,7 @@ async function doSubmitDeposit() {
 }
 
 /* ─── Submit Balance ─── */
-function doSubmitBalance() {
+async function doSubmitBalance() {
   // 1) ดึงค่าจากฟอร์ม
   var quoteNo = (document.getElementById('b-quote') ? document.getElementById('b-quote').value : '').trim();
   if (!quoteNo) { toast('⚠️ กรุณาระบุเลขที่ใบเสนอราคา', 'err'); return; }
@@ -1210,87 +1210,90 @@ function doSubmitBalance() {
   var received = parseFloat(String(amountRaw).replace(/,/g, ''));
   if (!received || received <= 0) { toast('⚠️ จำนวนเงินต้องมากกว่า 0', 'err'); return; }
 
-  var receiveDate = document.getElementById('b-date') ? document.getElementById('b-date').value : '';
-  if (!receiveDate) { toast('⚠️ กรุณาเลือกวันที่', 'err'); return; }
+  var date = document.getElementById('b-date') ? document.getElementById('b-date').value : '';
+  if (!date) { toast('⚠️ กรุณาเลือกวันที่', 'err'); return; }
 
   var customer = document.getElementById('b-customer') ? document.getElementById('b-customer').value : '';
-  var note = document.getElementById('b-note') ? document.getElementById('b-note').value : '';
+  var note     = document.getElementById('b-note')     ? document.getElementById('b-note').value     : '';
 
-  // 2) ช่องทางการจ่าย + ธนาคาร (จาก UI ใหม่)
+  // 2) ช่องทางการจ่าย + ธนาคาร
   var paymentMethod = 'โอน';
   var radios = document.querySelectorAll('input[name=”b-pay”]');
-  radios.forEach(function(r) { if (r.checked) paymentMethod = r.value; });
+  radios.forEach(function(rb) { if (rb.checked) paymentMethod = rb.value; });
   var bankName = (document.getElementById('b-bank') ? document.getElementById('b-bank').value : '') || '';
 
   // 3) ดึงข้อมูลสลิป SlipOK
-  var r = slipData['b'] || {};
-  var d = r.slipData || {};
-
-  // 4) ข้อมูล party จาก __balSlipPartyData (เก็บโดย balFillSlipPartyFields_)
+  var r     = slipData['b'] || {};
+  var d     = r.slipData   || {};
   var party = __balSlipPartyData || {};
-
-  // slipFile['b'] เป็น base64 object: { data, mimeType, name }
   var fileObj = slipFile['b'] || null;
 
-  // 5) เตรียม Payload (หน้าตาเหมือน submitBalanceReceipt ฝั่งหน้าเว็บหลัก)
-  var formData = {
-    quoteNo:      quoteNo,
-    customerName: customer,
-    pack: __balPack || '', head: __balHead || '',
-    depositPaid: __balDepositPaid  || 0,
-    balanceBefore: __balRemainingAmt || 0,
-
-    receivedAmount: received,
-    receiveDate:    receiveDate,
-    paymentMethod:  paymentMethod,
-    bankName:       bankName || party.sendingBank || d.sendingBank || '',
-    chequeNo:       '',
-    note:           note,
-
-    // SlipOK result
-    qrDetected:    (__balQrDetected === null) ? (!!r.qrcodeData) : __balQrDetected,
-    slipOkVerified:(r.verifyStatus === 'VERIFIED') || (r.verified === true),
-    slipOkStatus:  r.verifyStatus  || '',
-    slipOkCode:    r.verifyCode    || '',
-    slipOkMessage: r.verifyMessage || '',
-    slipAmount:    d.amount  || r.depositAmount || '',
-    slipDate:      d.transDate || r.depositDate || '',
-
-    // ข้อมูลผู้โอน/ผู้รับ (จาก __balSlipPartyData)
-    senderName:     party.senderName     || (d.sender   && (d.sender.displayName   || d.sender.name))   || '',
-    senderAccount:  party.senderAccount  || (d.sender   && d.sender.account && (d.sender.account.value   || d.sender.accountValue))   || '',
-    receiverName:   party.receiverName   || (d.receiver && (d.receiver.displayName || d.receiver.name))  || '',
-    receiverAccount:party.receiverAccount|| (d.receiver && d.receiver.account && (d.receiver.account.value|| d.receiver.accountValue)) || '',
-
-    adminName:  (typeof adminName  !== 'undefined' ? adminName  : ''),
-    lineUserId: (typeof lineUserId !== 'undefined' ? lineUserId : '')
+  // 4) สร้าง slip object ตรงกับที่ _liff_saveBalance อ่าน
+  var slip = {
+    verifyStatus:          r.verifyStatus   || '',
+    verifyCode:            r.verifyCode     || '',
+    verifyMessage:         r.verifyMessage  || '',
+    transRef:              d.transRef       || '',
+    transTimestamp:        d.transTimestamp || null,
+    amount:                d.amount         || r.depositAmount || 0,
+    transDate:             d.transDate      || r.depositDate   || '',
+    sendingBank:           d.sendingBank    || party.sendingBank || '',
+    senderDisplayName:     (d.sender   && (d.sender.displayName   || d.sender.name))   || party.senderName     || '',
+    senderAccountValue:    (d.sender   && d.sender.account && (d.sender.account.value   || d.sender.accountValue))   || party.senderAccount  || '',
+    receiverDisplayName:   (d.receiver && (d.receiver.displayName || d.receiver.name))  || party.receiverName   || '',
+    receiverAccountValue:  (d.receiver && d.receiver.account && (d.receiver.account.value|| d.receiver.accountValue)) || party.receiverAccount || ''
   };
 
-  // 6) แนบไฟล์หลักฐาน
-  if (fileObj && fileObj.data) {
-    var mime = fileObj.mimeType || 'image/jpeg';
-    formData.proofFileBase64 = 'data:' + mime + ';base64,' + fileObj.data;
-    formData.proofFileName   = fileObj.name || 'BalanceSlip';
-  }
+  // 5) เตรียม payload ตรงกับ _liff_saveBalance(data)
+  var payload = {
+    action:        'saveBalance',
+    quoteNo:       quoteNo,
+    customer:      customer,
+    amount:        received,
+    date:          date,
+    paymentMethod: paymentMethod,
+    bankName:      bankName || slip.sendingBank || '',
+    chequeNo:      '',
+    note:          note,
+    package:       __balPack        || '',
+    head:          __balHead        || '',
+    depositPaid:   __balDepositPaid || 0,
+    balanceBefore: __balRemainingAmt|| 0,
+    slip:          slip,
+    // fallback fields (อ่านจาก _liff_saveBalance ถ้า slip ไม่ครบ)
+    slipOkStatus:  slip.verifyStatus,
+    slipOkCode:    slip.verifyCode,
+    slipOkMessage: slip.verifyMessage,
+    slipAmount:    slip.amount,
+    slipDate:      slip.transDate,
+    senderName:    slip.senderDisplayName,
+    senderAccount: slip.senderAccountValue,
+    receiverName:  slip.receiverDisplayName,
+    receiverAccount: slip.receiverAccountValue,
+    qrDetected:    (__balQrDetected === null) ? (!!r.qrcodeData) : __balQrDetected,
+    adminName:     (typeof adminName   !== 'undefined' ? adminName   : ''),
+    lineUserId:    (typeof lineUserId  !== 'undefined' ? lineUserId  : ''),
+    file:          fileObj || undefined   // { data, mimeType, name } — GAS จะ upload ให้
+  };
 
-  // 7) UI Loading
+  // 6) UI Loading
   setBtnLoad('b-btn', true, 'กำลังบันทึก...');
 
-  // 8) เรียกหลังบ้าน
-  google.script.run
-    .withSuccessHandler(function(res) {
-      setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
-      if (res && res.warning && res.warningMessage) { alert(res.warningMessage); }
-      toast('✅ ' + (res && res.message ? res.message : 'บันทึกสำเร็จ'), 'ok');
+  // 7) ส่งผ่าน api() — REST fetch เหมือนแท็บมัดจำ (ไม่ใช้ google.script.run)
+  try {
+    const res = await api(payload);
+    setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
+    if (res && res.status === 'ok') {
+      toast('✅ ' + (res.message || 'บันทึกสำเร็จ'), 'ok');
       resetForm('b');
       if (typeof loadRecent === 'function') loadRecent();
-    })
-    .withFailureHandler(function(err) {
-      setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
-      var msg = (err && err.message) ? err.message : String(err || '');
-      toast('❌ บันทึกผิดพลาด: ' + msg, 'err');
-    })
-    .saveBalanceReceipt(formData);
+    } else {
+      toast('❌ ' + (res && res.message ? res.message : 'บันทึกไม่สำเร็จ'), 'err');
+    }
+  } catch(e) {
+    setBtnLoad('b-btn', false, '✅ บันทึก + ส่ง LINE');
+    toast('❌ บันทึกผิดพลาด: ' + e.message, 'err');
+  }
 }
   
 /* ─── Load Recent ─── */
