@@ -472,6 +472,7 @@ let slipFile    = { d: null, b: null };   // base64 file data per tab
 let __balQrDetected    = null;   // null=ยังไม่ตรวจ, true=พบ QR, false=ไม่พบ QR
 let __balSlipPartyData = null;   // { senderName, senderAccount, receiverName, receiverAccount, sendingBank }
 let __balRemainingAmt  = 0;      // ยอดคงเหลือที่ดึงมาจาก quote ที่เลือก
+let __balDepositPaid   = 0;      // ยอดมัดจำที่จ่ายแล้ว (จาก getBalanceInfo)
 
 /* ─── Init ─── */
 /* ─── Init (อัปเกรด โหลดเร็วปรี๊ด 0.1 วิ) ─── */
@@ -626,8 +627,9 @@ document.addEventListener('DOMContentLoaded', () => {
         balSetCompareMsg_('', false);
         google.script.run
           .withSuccessHandler(function(info) {
-            if (info && info.balance != null) {
-              __balRemainingAmt = Number(info.balance) || 0;
+            if (info) {
+              __balRemainingAmt = Number(info.balance)     || 0;
+              __balDepositPaid  = Number(info.depositPaid) || 0;
               const el = document.getElementById('b-result-count');
               if (el && __balRemainingAmt > 0) {
                 el.textContent = '💰 ยอดคงเหลือ: ฿' + fmt(__balRemainingAmt);
@@ -1147,7 +1149,8 @@ function doSubmitBalance() {
     quoteNo:      quoteNo,
     customerName: customer,
     pack: '', head: '',
-    depositPaid: 0, balanceBefore: 0,
+    depositPaid: __balDepositPaid  || 0,
+    balanceBefore: __balRemainingAmt || 0,
 
     receivedAmount: received,
     receiveDate:    receiveDate,
@@ -1299,6 +1302,7 @@ function resetForm(p) {
     __balQrDetected    = null;
     __balSlipPartyData = null;
     __balRemainingAmt  = 0;
+    __balDepositPaid   = 0;
     // unlock amount/date
     balUnlockAmountDate_();
     // reset compare msg
