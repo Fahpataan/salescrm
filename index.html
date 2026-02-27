@@ -1013,39 +1013,27 @@ function balOnSlipOkResult_(res) {
 }
 
 /* ── ตรวจสลิปใหม่อีกครั้ง (b-verify-btn) ── */
-function balReVerifySlip_() {
+async function balReVerifySlip_() {
   if (!slipFile['b']) { toast('⚠️ กรุณาเลือกรูปสลิปก่อน','err'); return; }
   const btn = document.getElementById('b-verify-btn');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div>';
   balSetUploadMsg_('skip', '⏳', 'กำลังส่งตรวจ SlipOK ใหม่…');
-  var __reVerifyDone = false;
-  var __reVerifyTimer = setTimeout(function() {
-    if (!__reVerifyDone) {
-      __reVerifyDone = true;
+  try {
+    // ใช้ api() เหมือนแท็บมัดจำ — เร็วกว่า google.script.run ใน LINE WebView
+    const res = await api({ action: 'verifySlip', file: slipFile['b'] });
+    btn.innerHTML = '<span>🔄</span> ตรวจสลิปใหม่อีกครั้ง';
+    if (!res || res.status !== 'ok' || !res.result) {
       btn.disabled = false;
-      btn.innerHTML = '<span>🔄</span> ตรวจสลิปใหม่อีกครั้ง';
-      balSetUploadMsg_('delay', '⏰', 'SlipOK ใช้เวลานานเกินไป — กดตรวจใหม่ หรือกรอกยอดเอง');
-      balUnlockAmountDate_();
+      balSetUploadMsg_('fail', '❌', 'ตรวจสลิปไม่สำเร็จ: ' + (res && res.message ? res.message : 'ไม่ได้รับผลลัพธ์'));
+    } else {
+      balOnSlipOkResult_(res.result);
     }
-  }, 30000); // timeout 30 วินาที
-  google.script.run
-    .withSuccessHandler(function(res) {
-      if (__reVerifyDone) return;
-      __reVerifyDone = true;
-      clearTimeout(__reVerifyTimer);
-      btn.innerHTML = '<span>🔄</span> ตรวจสลิปใหม่อีกครั้ง';
-      balOnSlipOkResult_(res);
-    })
-    .withFailureHandler(function(err) {
-      if (__reVerifyDone) return;
-      __reVerifyDone = true;
-      clearTimeout(__reVerifyTimer);
-      btn.disabled = false;
-      btn.innerHTML = '<span>🔄</span> ตรวจสลิปใหม่อีกครั้ง';
-      balSetUploadMsg_('fail', '❌', 'ตรวจสลิปผิดพลาด: ' + (err && err.message ? err.message : String(err)));
-    })
-    .verifySlipOnly({ file: slipFile['b'] });
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<span>🔄</span> ตรวจสลิปใหม่อีกครั้ง';
+    balSetUploadMsg_('fail', '❌', 'ตรวจสลิปผิดพลาด: ' + e.message);
+  }
 }
 
 /* ════ MAIN: New Balance slip-selected flow ════ */
@@ -1103,33 +1091,21 @@ async function onBalSlipSelected_() {
     return;
   }
 
-  // ⑦ พบ QR → ส่งตรวจ SlipOK
+  // ⑦ พบ QR → ส่งตรวจ SlipOK ผ่าน api() เหมือนแท็บมัดจำ (เร็วกว่า google.script.run ใน LINE WebView)
   __balQrDetected = true;
   balSetUploadMsg_('skip', '⏳', 'กำลังตรวจสลิปกับ SlipOK…');
-  var __slipOkDone7 = false;
-  var __slipOkTimer7 = setTimeout(function() {
-    if (!__slipOkDone7) {
-      __slipOkDone7 = true;
-      balSetUploadMsg_('delay', '⏰', 'SlipOK ใช้เวลานานเกินไป — กดปุ่มตรวจใหม่ หรือกรอกยอดเอง');
+  try {
+    const res = await api({ action: 'verifySlip', file: fileObj });
+    if (!res || res.status !== 'ok' || !res.result) {
+      balSetUploadMsg_('fail', '❌', 'ตรวจสลิปไม่สำเร็จ: ' + (res && res.message ? res.message : 'ไม่ได้รับผลลัพธ์'));
       document.getElementById('b-verify-btn').disabled = false;
-      balUnlockAmountDate_();
+    } else {
+      balOnSlipOkResult_(res.result);
     }
-  }, 30000); // timeout 30 วินาที
-  google.script.run
-    .withSuccessHandler(function(res) {
-      if (__slipOkDone7) return;
-      __slipOkDone7 = true;
-      clearTimeout(__slipOkTimer7);
-      balOnSlipOkResult_(res);
-    })
-    .withFailureHandler(function(err) {
-      if (__slipOkDone7) return;
-      __slipOkDone7 = true;
-      clearTimeout(__slipOkTimer7);
-      balSetUploadMsg_('fail', '❌', 'ตรวจสลิปผิดพลาด: ' + (err && err.message ? err.message : String(err)));
-      document.getElementById('b-verify-btn').disabled = false;
-    })
-    .verifySlipOnly({ file: fileObj });
+  } catch(e) {
+    balSetUploadMsg_('fail', '❌', 'ตรวจสลิปผิดพลาด: ' + e.message);
+    document.getElementById('b-verify-btn').disabled = false;
+  }
 }
 
 /* ─── Submit Deposit ─── */
