@@ -1033,8 +1033,12 @@ async function onBalSlipSelected_() {
   }
 
   if (!qrError && qrData === null) {
-    // ไม่พบ QR → ข้าม SlipOK
+    // ไม่พบ QR → ข้าม SlipOK แต่ยังเก็บไฟล์ไว้เผื่อ Re-verify / Submit
     __balQrDetected = false;
+    try {
+      const fileObj0 = await balFileToBase64_(file);
+      slipFile['b'] = fileObj0;
+    } catch(e) { /* ไม่ critical */ }
     balSetUploadMsg_('skip', '📝', 'ไม่พบ QR code — กรุณากรอกยอดและวันที่เอง');
     document.getElementById('b-verify-btn').disabled = false;
     return;
