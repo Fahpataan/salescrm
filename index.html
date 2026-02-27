@@ -396,14 +396,23 @@
         <label class="lbl">ธนาคาร</label>
         <select class="ctrl" id="b-bank">
           <option value="">— เลือกธนาคาร —</option>
-          <option value="กสิกรไทย">กสิกรไทย (KBank)</option>
-          <option value="ไทยพาณิชย์">ไทยพาณิชย์ (SCB)</option>
-          <option value="กรุงเทพ">กรุงเทพ (BBL)</option>
-          <option value="กรุงไทย">กรุงไทย (KTB)</option>
-          <option value="กรุงศรีอยุธยา">กรุงศรีอยุธยา (BAY)</option>
-          <option value="ทหารไทยธนชาต">ทหารไทยธนชาต (TTB)</option>
-          <option value="ออมสิน">ออมสิน (GSB)</option>
-          <option value="ธ.ก.ส.">ธ.ก.ส. (BAAC)</option>
+          <option value="กสิกรไทย">กสิกรไทย</option>
+          <option value="ไทยพาณิชย์">ไทยพาณิชย์</option>
+          <option value="กรุงเทพ">กรุงเทพ</option>
+          <option value="กรุงไทย">กรุงไทย</option>
+          <option value="กรุงศรีอยุธยา">กรุงศรีอยุธยา</option>
+          <option value="ทีเอ็มบีธนชาต (ttb)">ทีเอ็มบีธนชาต (ttb)</option>
+          <option value="ออมสิน">ออมสิน</option>
+          <option value="UOB">UOB</option>
+          <option value="CIMB">CIMB</option>
+          <option value="ธ.ก.ส.">ธ.ก.ส.</option>
+          <option value="เกียรตินาคินภัทร">เกียรตินาคินภัทร</option>
+          <option value="LH Bank">LH Bank</option>
+          <option value="ไอซีบีซี (ไทย)">ไอซีบีซี (ไทย)</option>
+          <option value="สแตนดาร์ดชาร์เตอร์ด">สแตนดาร์ดชาร์เตอร์ด</option>
+          <option value="ทิสโก้">ทิสโก้</option>
+          <option value="ซิตี้แบงก์">ซิตี้แบงก์</option>
+          <option value="ไทยเครดิต">ไทยเครดิต</option>
           <option value="พร้อมเพย์">พร้อมเพย์</option>
         </select>
       </div>
@@ -950,7 +959,27 @@ function balAutoSelectTransferAndBank_(slipRes) {
     '024': 'ซิตี้แบงก์',
     '066': 'ไทยเครดิต'
   };
-  const wantText = bankNameMapTH[bankCode] || '';
+
+  // ถ้า SlipOK ส่ง bankCode เป็น text (เช่น "พร้อมเพย์", "promptpay") แทน numeric code
+  const bankTextMap = {
+    'พร้อมเพย์': 'พร้อมเพย์', 'promptpay': 'พร้อมเพย์',
+    'กสิกรไทย': 'กสิกรไทย', 'kbank': 'กสิกรไทย',
+    'ไทยพาณิชย์': 'ไทยพาณิชย์', 'scb': 'ไทยพาณิชย์',
+    'กรุงเทพ': 'กรุงเทพ', 'bbl': 'กรุงเทพ',
+    'กรุงไทย': 'กรุงไทย', 'ktb': 'กรุงไทย',
+    'กรุงศรีอยุธยา': 'กรุงศรีอยุธยา', 'bay': 'กรุงศรีอยุธยา',
+    'ทีเอ็มบีธนชาต': 'ทีเอ็มบีธนชาต', 'ttb': 'ทีเอ็มบีธนชาต',
+    'ทหารไทยธนชาต': 'ทีเอ็มบีธนชาต',
+    'ออมสิน': 'ออมสิน', 'gsb': 'ออมสิน',
+    'ธ.ก.ส.': 'ธ.ก.ส.', 'baac': 'ธ.ก.ส.'
+  };
+
+  let wantText = bankNameMapTH[bankCode] || '';
+  // fallback: ลอง match เป็น text (กรณี SlipOK ส่งชื่อมาแทน code)
+  if (!wantText && bankCode) {
+    const key = bankCode.toLowerCase().replace(/\s/g, '');
+    wantText = bankTextMap[bankCode] || bankTextMap[key] || '';
+  }
 
   // ====== 4) เลือกธนาคารใน dropdown b-bank ======
   function setBank() {
