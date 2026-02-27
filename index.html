@@ -945,6 +945,16 @@ function balOnSlipOkResult_(res) {
     const bank = (res.slipData && res.slipData.sendingBank) || res.sendingBank || '?';
     balSetUploadMsg_('ok', '✅', `VERIFIED — ฿${fmt(amount)} (${bank} → รับ)`);
     toast('✅ ตรวจสลิปสำเร็จ', 'ok');
+  } else if (res.verifyCode === '1012') {
+    // สลิปซ้ำ — ยังบันทึกได้ปกติ ถ้ามียอด หรือกรอกเองได้
+    if (amount > 0) {
+      balSetUploadMsg_('delay', '⚠️', `สลิปซ้ำ [1012] ฿${fmt(amount)} — บันทึกได้ปกติ`);
+      toast('⚠️ สลิปซ้ำในระบบ แต่มียอด — บันทึกได้ปกติ', '');
+    } else {
+      balUnlockAmountDate_();
+      balSetUploadMsg_('delay', '⚠️', `สลิปซ้ำ [1012] — กรุณากรอกยอดและวันที่เอง แล้วบันทึกได้ปกติ`);
+      toast('⚠️ สลิปซ้ำ — กรุณากรอกยอดและวันที่เอง', '');
+    }
   } else if (status === 'DELAY') {
     balSetUploadMsg_('delay', '⏳', `DELAY (รอ ${res.delayMin || '?'} นาที) — ${res.verifyMessage || ''}`);
     toast('⏳ สลิปอยู่ระหว่างตรวจสอบ (DELAY)', '');
