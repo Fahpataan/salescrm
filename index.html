@@ -732,25 +732,42 @@ async function doVerifySlip(p) {
       toast('❌ ตรวจสลิปไม่สำเร็จ: ' + (res.message || ''), 'err');
       showVerifyBox(p, 'fail', '❌', 'ตรวจสลิปไม่สำเร็จ');
     } else {
-      const r = res.result;
+      const r  = res.result;
+      const sd = r.slipData || {};
       slipData[p] = r;
 
+      const amount = Number(r.depositAmount || 0);
+      const date   = r.depositDate || '';
+      const bank   = sd.sendingBank || '';
+
+      // เติมยอด/วันที่ทุกกรณีที่มีข้อมูล (VERIFIED, DELAY, 1012 ฯลฯ)
+      if (amount > 0) document.getElementById(p + '-amount').value = amount;
+      if (date)       document.getElementById(p + '-date').value   = date;
+
       if (r.verified) {
-        showVerifyBox(p, 'ok', '✅', `VERIFIED — ฿${fmt(r.depositAmount)} (${r.sendingBank || '?'} → รับ)`);
-        // Auto-fill amount & date
-        if (r.depositAmount > 0)  document.getElementById(p + '-amount').value = r.depositAmount;
-        if (r.depositDate)         document.getElementById(p + '-date').value   = r.depositDate;
+        showVerifyBox(p, 'ok', '✅', `VERIFIED — ฿${fmt(amount)} (${bank || '?'} → รับ)`);
         toast('✅ ตรวจสลิปสำเร็จ', 'ok');
 
       } else if (r.verifyStatus === 'DELAY') {
         showVerifyBox(p, 'delay', '⏳', `DELAY (รอ ${r.delayMin || '?'} นาที) — ` + r.verifyMessage);
-        if (r.depositAmount > 0) document.getElementById(p + '-amount').value = r.depositAmount;
-        if (r.depositDate)        document.getElementById(p + '-date').value   = r.depositDate;
         toast('⏳ สลิปอยู่ระหว่างตรวจสอบ (DELAY)', '');
 
+      } else if (r.verifyCode === '1012') {
+        // สลิปซ้ำ — ถ้ามียอดให้เติมและบันทึกได้ปกติ
+        if (amount > 0) {
+          showVerifyBox(p, 'delay', '⚠️', `สลิปซ้ำ [1012] ฿${fmt(amount)} — บันทึกได้ปกติ`);
+          toast('⚠️ สลิปซ้ำในระบบ แต่มียอด — บันทึกได้ปกติ', '');
+        } else {
+          showVerifyBox(p, 'delay', '⚠️', `สลิปซ้ำ [1012] — กรุณากรอกยอดและวันที่เอง แล้วบันทึกได้ปกติ`);
+          toast('⚠️ สลิปซ้ำ — กรุณากรอกยอดและวันที่เอง', '');
+        }
+
+      } else if (r.verifyStatus === 'SKIPPED') {
+        showVerifyBox(p, 'skip', '📝', r.verifyMessage || 'ข้ามตรวจ SlipOK — กรุณากรอกยอดและวันที่เอง');
+
       } else {
-        showVerifyBox(p, 'fail', '❌', `FAILED [${r.verifyCode}] — ` + r.verifyMessage);
-        toast('⚠️ สลิปตรวจไม่ผ่าน: ' + r.verifyMessage, 'err');
+        showVerifyBox(p, 'fail', '❌', `FAILED [${r.verifyCode || '?'}] — ` + (r.verifyMessage || ''));
+        toast('⚠️ สลิปตรวจไม่ผ่าน: ' + (r.verifyMessage || ''), 'err');
       }
     }
   } catch(e) { toast('❌ เกิดข้อผิดพลาด: ' + e.message, 'err'); }
