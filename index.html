@@ -1032,11 +1032,16 @@ async function onBalSlipSelected_() {
   const mime = (file.type || '').toLowerCase();
   const isImage = mime === 'image/png' || mime === 'image/jpeg' || mime === 'image/jpg';
   if (!isImage) {
-    __balQrDetected = false;
-    balSetUploadMsg_('skip', '📄', 'ไฟล์ไม่ใช่รูป PNG/JPG — กรุณากรอกยอดและวันที่เอง');
-    document.getElementById('b-verify-btn').disabled = false;
-    return;
-  }
+  __balQrDetected = false;
+  // เก็บไฟล์ไว้ก่อนเปิดปุ่ม เพื่อป้องกัน "กรุณาเลือกรูปสลิปก่อน"
+  try {
+    const fileObj0 = await balFileToBase64_(file);
+    slipFile['b'] = fileObj0;
+  } catch(e) { /* ไม่ critical */ }
+  balSetUploadMsg_('skip', '📄', 'ไฟล์ไม่ใช่รูป PNG/JPG — กรุณากรอกยอดและวันที่เอง');
+  document.getElementById('b-verify-btn').disabled = false;
+  return;
+}
 
   /* ⑤ ตรวจ QR ในรูป */
   balSetUploadMsg_('skip', '🔍', 'กำลังตรวจหา QR code…');
