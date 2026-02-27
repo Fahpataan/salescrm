@@ -826,32 +826,66 @@ function balToggleBankGroup_() {
   if (bankGrp) bankGrp.style.display = (selected === 'โอน' || selected === 'เช็ค') ? '' : 'none';
 }
 
-/* 5. ตรวจ QR ในรูปด้วย jsQR (คืน null = ไม่พบ, string = พบ) */
-function balDetectQrInImage_(file) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = async e => {
-      try {
-        const qr = await detectQRCode(e.target.result);
-        resolve(qr);
-      } catch(err) { resolve(null); }
+/* 5+6. resize รูปเป็น maxDim px แล้วคืน { data, mimeType, name, qrData }
+   - อ่านไฟล์ครั้งเดียว, resize บน canvas, ตรวจ QR บน canvas เดิม (เร็วกว่าเดิมมาก)
+   - maxDim default 1500 (รองรับ QR + ลด payload ก่อนส่ง GAS) */
+function balPrepareImage_(file, maxDim) {
+  var limit = maxDim || 1500;
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onerror = function() { reject(new Error('อ่านไฟล์ไม่ได้')); };
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onerror = function() { reject(new Error('โหลดรูปไม่ได้')); };
+      img.onload = function() {
+        // คำนวณขนาดหลัง resize
+        var w = img.width, h = img.height;
+        if (w > limit || h > limit) {
+          if (w >= h) { h = Math.round(h * limit / w); w = limit; }
+          else        { w = Math.round(w * limit / h); h = limit; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width  = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        // ตรวจ QR บน canvas เดิม (ไม่ต้องสร้างใหม่)
+        var qrFound = null;
+        try {
+          var imageData = ctx.getImageData(0, 0, w, h);
+          var code = (typeof jsQR === 'function') ? jsQR(imageData.data, w, h) : null;
+          qrFound = code ? code.data : null;
+        } catch(qrErr) { qrFound = null; }
+
+        // export เป็น base64 (PNG ถ้าเป็น PNG, อื่นๆ ใช้ JPEG quality 0.88)
+        var outMime = (file.type === 'image/png') ? 'image/png' : 'image/jpeg';
+        var dataUrl  = canvas.toDataURL(outMime, 0.88);
+        var b64      = dataUrl.split(',')[1] || '';
+
+        resolve({
+          data:     b64,
+          mimeType: outMime,
+          name:     file.name,
+          qrData:   qrFound        // null = ไม่พบ QR, string = พบ
+        });
+      };
+      img.src = e.target.result;
     };
-    reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
   });
 }
 
-/* 6. แปลงไฟล์เป็น base64 object */
+/* compat shim — ใช้งานโดย balReVerifySlip_ ผ่าน slipFile['b'] ที่เก็บไว้แล้ว */
 function balFileToBase64_(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const b64 = e.target.result.split(',')[1];
-      resolve({ data: b64, mimeType: file.type, name: file.name });
-    };
-    reader.onerror = () => reject(new Error('อ่านไฟล์ไม่ได้'));
-    reader.readAsDataURL(file);
+  return balPrepareImage_(file).then(function(r) {
+    return { data: r.data, mimeType: r.mimeType, name: r.name };
   });
+}
+
+/* compat shim — ไม่ถูกเรียกโดย onBalSlipSelected_ อีกต่อไป แต่เผื่อมี caller อื่น */
+function balDetectQrInImage_(file) {
+  return balPrepareImage_(file).then(function(r) { return r.qrData; });
 }
 
 /* 8a. เก็บข้อมูลผู้โอน/ผู้รับ (ไม่แสดง UI แต่ส่งไปบันทึกลงชีต) */
@@ -1025,77 +1059,52 @@ async function onBalSlipSelected_() {
   /* ② Unlock amount/date เพื่อรอกรอกเอง */
   balUnlockAmountDate_();
 
-  /* ③ Reset compare msg + แสดง "กำลังประมวลผล" */
+  /* ③ Reset compare msg */
   balSetCompareMsg_('', false);
   balSetUploadMsg_('skip', '⏳', 'กำลังประมวลผลรูป…');
 
-  // แสดง preview ก่อน
-  const previewDataUrl = await new Promise(resolve => {
-    const r = new FileReader();
-    r.onload = e => resolve(e.target.result);
-    r.onerror = () => resolve(null);
-    r.readAsDataURL(file);
-  });
-  if (previewDataUrl) {
-    const prev = document.getElementById('slip-preview-b');
-    prev.src = previewDataUrl;
-    prev.style.display = 'block';
-    document.getElementById('slip-placeholder-b').style.display = 'none';
-    document.getElementById('slip-zone-b').classList.add('has-img');
+  /* ④+⑤+⑥ resize + ตรวจ QR + แปลง base64 ในครั้งเดียว (เร็วกว่าเดิมมาก) */
+  let prepared;
+  try {
+    prepared = await balPrepareImage_(file); // { data, mimeType, name, qrData }
+  } catch(e) {
+    balSetUploadMsg_('fail', '❌', 'อ่านไฟล์ไม่ได้: ' + e.message);
+    return;
   }
 
-  /* ④ ตรวจชนิดไฟล์ */
-  const mime = (file.type || '').toLowerCase();
-  const isImage = mime === 'image/png' || mime === 'image/jpeg' || mime === 'image/jpg';
-  if (!isImage) {
+  // แสดง preview จากรูปที่ resize แล้ว
+  const previewDataUrl = 'data:' + prepared.mimeType + ';base64,' + prepared.data;
+  const prev = document.getElementById('slip-preview-b');
+  prev.src = previewDataUrl;
+  prev.style.display = 'block';
+  document.getElementById('slip-placeholder-b').style.display = 'none';
+  document.getElementById('slip-zone-b').classList.add('has-img');
+
+  // ตรวจว่า SlipOK รองรับ MIME type นี้ไหม
+  const slipOkMime = ['image/png','image/jpeg','image/jpg'];
+  const isSupported = slipOkMime.indexOf(prepared.mimeType) > -1;
+  if (!isSupported) {
     __balQrDetected = false;
-    // เก็บไฟล์ไว้ก่อนเปิดปุ่ม เพื่อป้องกัน "กรุณาเลือกรูปสลิปก่อน" เมื่อกดตรวจใหม่
-    try {
-      const fileObj0 = await balFileToBase64_(file);
-      slipFile['b'] = fileObj0;
-    } catch(e) { /* ไม่ critical */ }
+    slipFile['b'] = { data: prepared.data, mimeType: prepared.mimeType, name: prepared.name };
     balSetUploadMsg_('skip', '📄', 'ไฟล์ไม่ใช่รูป PNG/JPG — กรุณากรอกยอดและวันที่เอง');
     document.getElementById('b-verify-btn').disabled = false;
     return;
   }
 
-  /* ⑤ ตรวจ QR ในรูป */
-  balSetUploadMsg_('skip', '🔍', 'กำลังตรวจหา QR code…');
-  let qrData = null;
-  let qrError = false;
-  try {
-    qrData = await balDetectQrInImage_(file);
-  } catch(e) {
-    qrError = true; // ไม่แน่ใจ → ส่งตรวจต่อ
-  }
+  // เก็บไฟล์ (resize แล้ว) ไว้ใช้ตอน submit / re-verify
+  var fileObj = { data: prepared.data, mimeType: prepared.mimeType, name: prepared.name };
+  slipFile['b'] = fileObj;
 
-  if (!qrError && qrData === null) {
-    // ไม่พบ QR → ข้าม SlipOK แต่ยังเก็บไฟล์ไว้เผื่อ Re-verify / Submit
+  if (prepared.qrData === null) {
+    // ไม่พบ QR → ข้าม SlipOK
     __balQrDetected = false;
-    try {
-      const fileObj0 = await balFileToBase64_(file);
-      slipFile['b'] = fileObj0;
-    } catch(e) { /* ไม่ critical */ }
     balSetUploadMsg_('skip', '📝', 'ไม่พบ QR code — กรุณากรอกยอดและวันที่เอง');
     document.getElementById('b-verify-btn').disabled = false;
     return;
   }
 
-  // พบ QR หรือไม่แน่ใจ → ส่งตรวจ SlipOK
-  __balQrDetected = (qrData !== null);
-  balSetUploadMsg_('skip', '⏳', 'พบ QR code — กำลังแปลงรูปและส่งตรวจ SlipOK…');
-
-  /* ⑥ แปลงเป็น base64 */
-  let fileObj;
-  try {
-    fileObj = await balFileToBase64_(file);
-  } catch(e) {
-    balSetUploadMsg_('fail', '❌', 'อ่านไฟล์ไม่ได้: ' + e.message);
-    return;
-  }
-  slipFile['b'] = fileObj;
-
-  /* ⑦ ส่งตรวจ SlipOK ที่ GAS ผ่าน google.script.run */
+  // ⑦ พบ QR → ส่งตรวจ SlipOK
+  __balQrDetected = true;
   balSetUploadMsg_('skip', '⏳', 'กำลังตรวจสลิปกับ SlipOK…');
   var __slipOkDone7 = false;
   var __slipOkTimer7 = setTimeout(function() {
