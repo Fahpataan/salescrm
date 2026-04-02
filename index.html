@@ -1188,6 +1188,27 @@ async function onBalSlipSelected_() {
   }
 }
 
+/* ─── Helper: สร้าง Slip Payload สำหรับส่ง GAS ─── */
+function buildSlipPayload(p) {
+  const r     = slipData[p] || {};
+  const d     = r.slipData || {};
+  const party = (p === 'b') ? (__balSlipPartyData || {}) : {}; 
+  return {
+    verifyStatus:          r.verifyStatus   || '',
+    verifyCode:            r.verifyCode     || '',
+    verifyMessage:         r.verifyMessage  || '',
+    transRef:              d.transRef       || '',
+    transTimestamp:        d.transTimestamp || null,
+    amount:                d.amount         || r.depositAmount || 0,
+    transDate:             d.transDate      || r.depositDate   || '',
+    sendingBank:           d.sendingBank    || party.sendingBank || '',
+    senderDisplayName:     (d.sender   && (d.sender.displayName   || d.sender.name))   || party.senderName     || '',
+    senderAccountValue:    (d.sender   && d.sender.account && (d.sender.account.value   || d.sender.accountValue))   || party.senderAccount  || '',
+    receiverDisplayName:   (d.receiver && (d.receiver.displayName || d.receiver.name))  || party.receiverName   || '',
+    receiverAccountValue:  (d.receiver && d.receiver.account && (d.receiver.account.value|| d.receiver.accountValue)) || party.receiverAccount || ''
+  };
+}
+
 /* ─── Submit Deposit ─── */
 async function doSubmitDeposit() {
   const quoteNo  = v('d-quote');
@@ -1240,26 +1261,9 @@ async function doSubmitBalance() {
   var bankName = (document.getElementById('b-bank') ? document.getElementById('b-bank').value : '') || '';
 
   // 3) ดึงข้อมูลสลิป SlipOK
-  var r     = slipData['b'] || {};
-  var d     = r.slipData   || {};
-  var party = __balSlipPartyData || {};
-  var fileObj = slipFile['b'] || null;
-
-  // 4) สร้าง slip object ตรงกับที่ _liff_saveBalance อ่าน
-  var slip = {
-    verifyStatus:          r.verifyStatus   || '',
-    verifyCode:            r.verifyCode     || '',
-    verifyMessage:         r.verifyMessage  || '',
-    transRef:              d.transRef       || '',
-    transTimestamp:        d.transTimestamp || null,
-    amount:                d.amount         || r.depositAmount || 0,
-    transDate:             d.transDate      || r.depositDate   || '',
-    sendingBank:           d.sendingBank    || party.sendingBank || '',
-    senderDisplayName:     (d.sender   && (d.sender.displayName   || d.sender.name))   || party.senderName     || '',
-    senderAccountValue:    (d.sender   && d.sender.account && (d.sender.account.value   || d.sender.accountValue))   || party.senderAccount  || '',
-    receiverDisplayName:   (d.receiver && (d.receiver.displayName || d.receiver.name))  || party.receiverName   || '',
-    receiverAccountValue:  (d.receiver && d.receiver.account && (d.receiver.account.value|| d.receiver.accountValue)) || party.receiverAccount || ''
-  };
+  const slip = buildSlipPayload('b');
+  const fileObj = slipFile['b'] || null;
+  const r = slipData['b'] || {};
 
   // 5) เตรียม payload ตรงกับ _liff_saveBalance(data)
   var payload = {
